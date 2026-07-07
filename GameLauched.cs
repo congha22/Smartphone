@@ -313,6 +313,7 @@ namespace Smartphone
         {
             ClearActiveSaveFolderName();
             ModEntry.ContactableNpcs.Clear();
+            PhoneMenu.phoneAppDataLoaded = false;
 
             pendingInitNotification = false;
             pendingPhoneOsInitialization = false;
@@ -435,6 +436,7 @@ namespace Smartphone
         public static void OpenPhoneFromHudTrigger()
         {
             EnsurePhoneMenuUsesCurrentScale();
+            PhoneMenu.UpdateNpcNumbers();
 
             phoneMenu.OpenLockScreen();
             Game1.activeClickableMenu = phoneMenu;
