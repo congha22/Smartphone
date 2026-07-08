@@ -105,6 +105,21 @@ namespace Smartphone
                 themedIconTextures);
         }
 
+        public bool RegisterPassiveHudCallback(
+            string ownerModId,
+            string appId,
+            Action<SpriteBatch, Rectangle> onDrawHudScreen,
+            Action<GameTime>? onUpdateHudScreen = null,
+            bool landscape = false)
+        {
+            return ModEntry.RegisterPassiveHudCallbackInternal(
+                ownerModId,
+                appId,
+                onDrawHudScreen,
+                onUpdateHudScreen,
+                landscape);
+        }
+
         public void SetComponentTheme(string component, string theme)
         {
             AssetHelper.SetComponentTheme(component, theme);

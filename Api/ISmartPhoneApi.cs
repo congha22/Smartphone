@@ -284,5 +284,22 @@ namespace Smartphone
         /// <param name="getMetadata">Whether to retrieve the metadata.</param>
         /// <param name="onComplete">Callback invoked when user finishes selection or cancels (passes JSON string representing List of SelectedPhotoResult, or empty list).</param>
         void RetrievePhotos(int limit, bool getTexture, bool getMetadata, Action<string> onComplete, bool squareOnly = false);
+
+        /// <summary>
+        /// Registers draw and update callbacks for the passive HUD preview mode of an app.
+        /// </summary>
+        /// <param name="ownerModId">The unique ID of the mod that owns this app.</param>
+        /// <param name="appId">The app ID that was used during registration.</param>
+        /// <param name="onDrawHudScreen">Callback to draw the screen content inside the HUD phone frame.</param>
+        /// <param name="onUpdateHudScreen">Optional callback to update live data/animations in passive mode.</param>
+        /// <param name="landscape">Whether the app renders in landscape orientation, rotating the HUD icon frame itself.</param>
+        /// <returns>True if registration succeeded; otherwise false.</returns>
+        bool RegisterPassiveHudCallback(
+            string ownerModId,
+            string appId,
+            Action<SpriteBatch, Rectangle> onDrawHudScreen,
+            Action<GameTime>? onUpdateHudScreen = null,
+            bool landscape = false
+        );
     }
 }

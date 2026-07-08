@@ -17,6 +17,9 @@ namespace Smartphone
         public Func<int>? GetBadgeCount { get; init; }
         public List<AppSize> SupportedSizes { get; init; } = new() { AppSize.Size1x1 };
         public Action<SpriteBatch, Rectangle, AppSize>? OnDrawWidget { get; init; }
+        public Action<SpriteBatch, Rectangle>? OnDrawHudScreen { get; set; }
+        public Action<GameTime>? OnUpdateHudScreen { get; set; }
+        public bool Landscape { get; set; }
 
         public string CompositeId => BuildCompositeId(this.OwnerModId, this.AppId);
 
@@ -50,6 +53,7 @@ namespace Smartphone
         private static readonly object RegisteredPhoneAppsLock = new();
         private static readonly Dictionary<string, RegisteredPhoneApp> RegisteredPhoneApps = new(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, RegisteredChatQuickActionButton> RegisteredChatQuickActionButtons = new(StringComparer.OrdinalIgnoreCase);
+        public static string? ActiveExternalAppId = null;
 
         public static List<string> GetRegisteredAppIds()
         {
@@ -166,6 +170,42 @@ namespace Smartphone
                     : $"Registered smartphone app '{key}'.",
                 LogLevel.Trace);
             return true;
+        }
+
+        internal static bool RegisterPassiveHudCallbackInternal(
+            string ownerModId,
+            string appId,
+            Action<SpriteBatch, Rectangle> onDrawHudScreen,
+            Action<GameTime>? onUpdateHudScreen = null,
+            bool landscape = false)
+        {
+            if (string.IsNullOrWhiteSpace(ownerModId) || string.IsNullOrWhiteSpace(appId))
+            {
+                SMonitor?.Log("RegisterPassiveHudCallback failed: ownerModId and appId are required.", LogLevel.Warn);
+                return false;
+            }
+
+            if (onDrawHudScreen == null)
+            {
+                SMonitor?.Log("RegisterPassiveHudCallback failed: onDrawHudScreen callback is required.", LogLevel.Warn);
+                return false;
+            }
+
+            string key = RegisteredPhoneApp.BuildCompositeId(ownerModId, appId);
+            lock (RegisteredPhoneAppsLock)
+            {
+                if (RegisteredPhoneApps.TryGetValue(key, out var app))
+                {
+                    app.OnDrawHudScreen = onDrawHudScreen;
+                    app.OnUpdateHudScreen = onUpdateHudScreen;
+                    app.Landscape = landscape;
+                    SMonitor?.Log($"Registered passive HUD callback for '{key}'.", LogLevel.Trace);
+                    return true;
+                }
+            }
+
+            SMonitor?.Log($"RegisterPassiveHudCallback failed: app '{key}' is not registered yet. Please register the app first.", LogLevel.Warn);
+            return false;
         }
 
         internal static bool UnregisterPhoneAppInternal(string ownerModId, string appId)
@@ -354,6 +394,7 @@ namespace Smartphone
                 if (app.ClosePhoneOnLaunch)
                     menu.ClosePhoneMenu();
 
+                ActiveExternalAppId = compositeId;
                 app.OnClick?.Invoke();
                 return true;
             }

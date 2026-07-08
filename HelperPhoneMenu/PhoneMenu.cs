@@ -1671,6 +1671,7 @@ namespace Smartphone
             settingScrollTarget = 0f;
             currentSettingMenuState = SettingMenuMainState;
             currentApp = null;
+            ModEntry.ActiveExternalAppId = null;
             rootLandingState = RootLandingState.Home;
             lockScreenUnlockAnimating = false;
             lockScreenUnlockElapsedSeconds = 0d;

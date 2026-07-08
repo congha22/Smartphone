@@ -45,7 +45,7 @@ namespace Smartphone
                 && Game1.currentMinigame == null;
         }
 
-        private Microsoft.Xna.Framework.Rectangle GetHudPhoneIconBounds()
+        private Microsoft.Xna.Framework.Rectangle GetHudPhoneIconBounds(bool isLandscape = false)
         {
             Texture2D? frameTexture = Textures.PhoneEmpty;
             if (frameTexture == null || frameTexture.IsDisposed)
@@ -54,8 +54,12 @@ namespace Smartphone
             int viewportWidth = Math.Max(1, Game1.uiViewport.Width);
             int viewportHeight = Math.Max(1, Game1.uiViewport.Height);
 
+            // Swap dimensions if landscape
+            int textureWidth = isLandscape ? frameTexture.Height : frameTexture.Width;
+            int textureHeight = isLandscape ? frameTexture.Width : frameTexture.Height;
+
             int baseIconHeight = Math.Clamp(viewportHeight / 7, HudPhoneMinHeight, HudPhoneMaxHeight);
-            int baseIconWidth = Math.Max(1, (int)Math.Round(frameTexture.Width * (baseIconHeight / (float)Math.Max(1, frameTexture.Height))));
+            int baseIconWidth = Math.Max(1, (int)Math.Round(textureWidth * (baseIconHeight / (float)Math.Max(1, textureHeight))));
 
             int defaultX = viewportWidth - baseIconWidth - HudPhoneRightMargin;
             int aboveEnergyOffset = Math.Max(HudPhoneAboveEnergyOffset, viewportHeight / 5);
@@ -105,22 +109,45 @@ namespace Smartphone
             if (frameTexture == null || frameTexture.IsDisposed)
                 return;
 
-            Microsoft.Xna.Framework.Rectangle iconBounds = GetHudPhoneIconBounds();
+            // Is the active external app landscape?
+            bool isLandscape = false;
+            if (isHudPinned && ActiveExternalAppId != null && RegisteredPhoneApps.TryGetValue(ActiveExternalAppId, out var extAppLand))
+            {
+                isLandscape = extAppLand.Landscape;
+            }
+
+            Microsoft.Xna.Framework.Rectangle iconBounds = GetHudPhoneIconBounds(isLandscape);
             if (iconBounds.Width <= 0 || iconBounds.Height <= 0)
                 return;
 
             // Ensure phone menu instance is initialized and scale-synced
             EnsurePhoneMenuUsesCurrentScale();
 
-            int targetWidth = Textures.PhoneBackground?.Width ?? 520;
-            int targetHeight = Textures.PhoneBackground?.Height ?? 810;
-            float iconScale = iconBounds.Height / (float)Math.Max(1, frameTexture.Height);
+            int targetWidth = isLandscape ? (Textures.PhoneBackground?.Height ?? 810) : (Textures.PhoneBackground?.Width ?? 520);
+            int targetHeight = isLandscape ? (Textures.PhoneBackground?.Width ?? 520) : (Textures.PhoneBackground?.Height ?? 810);
+            float iconScale = isLandscape
+                ? iconBounds.Height / (float)Math.Max(1, frameTexture.Width)
+                : iconBounds.Height / (float)Math.Max(1, frameTexture.Height);
 
-            Microsoft.Xna.Framework.Rectangle contentBounds = new Microsoft.Xna.Framework.Rectangle(
-                iconBounds.X + (int)Math.Round(HudPhoneFrameContentOffsetX * iconScale),
-                iconBounds.Y + (int)Math.Round(HudPhoneFrameContentOffsetY * iconScale),
-                Math.Max(1, (int)Math.Round(targetWidth * iconScale)),
-                Math.Max(1, (int)Math.Round(targetHeight * iconScale)));
+            Microsoft.Xna.Framework.Rectangle contentBounds;
+            if (isLandscape)
+            {
+                contentBounds = new Microsoft.Xna.Framework.Rectangle(
+                    iconBounds.X + (int)Math.Round(HudPhoneFrameContentOffsetY * iconScale),
+                    iconBounds.Y + (int)Math.Round(HudPhoneFrameContentOffsetX * iconScale),
+                    Math.Max(1, (int)Math.Round(targetWidth * iconScale)),
+                    Math.Max(1, (int)Math.Round(targetHeight * iconScale))
+                );
+            }
+            else
+            {
+                contentBounds = new Microsoft.Xna.Framework.Rectangle(
+                    iconBounds.X + (int)Math.Round(HudPhoneFrameContentOffsetX * iconScale),
+                    iconBounds.Y + (int)Math.Round(HudPhoneFrameContentOffsetY * iconScale),
+                    Math.Max(1, (int)Math.Round(targetWidth * iconScale)),
+                    Math.Max(1, (int)Math.Round(targetHeight * iconScale))
+                );
+            }
 
             if (phoneMenu != null)
             {
@@ -164,10 +191,20 @@ namespace Smartphone
                 try
                 {
                     // Set phoneMenu to fit the RenderTarget exactly at 1.0f scale
-                    phoneMenu.xPositionOnScreen = -HudPhoneFrameContentOffsetX;
-                    phoneMenu.yPositionOnScreen = -HudPhoneFrameContentOffsetY;
-                    phoneMenu.width = PhoneFrameBaseWidth;
-                    phoneMenu.height = PhoneFrameBaseHeight;
+                    if (isLandscape)
+                    {
+                        phoneMenu.xPositionOnScreen = -HudPhoneFrameContentOffsetY;
+                        phoneMenu.yPositionOnScreen = -HudPhoneFrameContentOffsetX;
+                        phoneMenu.width = PhoneFrameBaseHeight;
+                        phoneMenu.height = PhoneFrameBaseWidth;
+                    }
+                    else
+                    {
+                        phoneMenu.xPositionOnScreen = -HudPhoneFrameContentOffsetX;
+                        phoneMenu.yPositionOnScreen = -HudPhoneFrameContentOffsetY;
+                        phoneMenu.width = PhoneFrameBaseWidth;
+                        phoneMenu.height = PhoneFrameBaseHeight;
+                    }
                     phoneMenu.phoneUiScale = 1.0f;
 
                     if (!isHudPinned)
@@ -182,7 +219,14 @@ namespace Smartphone
                     spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp);
                     if (isHudPinned)
                     {
-                        phoneMenu.DrawScreenContent(spriteBatch);
+                        if (ActiveExternalAppId != null && RegisteredPhoneApps.TryGetValue(ActiveExternalAppId, out var extApp) && extApp.OnDrawHudScreen != null)
+                        {
+                            extApp.OnDrawHudScreen(spriteBatch, new Rectangle(0, 0, targetWidth, targetHeight));
+                        }
+                        else
+                        {
+                            phoneMenu.DrawScreenContent(spriteBatch);
+                        }
                     }
                     else
                     {
@@ -217,7 +261,24 @@ namespace Smartphone
             }
 
             // Draw bezel frame on top of the rendered screen content
-            spriteBatch.Draw(frameTexture, iconBounds, Color.White);
+            if (isLandscape)
+            {
+                spriteBatch.Draw(
+                    frameTexture,
+                    new Vector2(iconBounds.X, iconBounds.Y + iconBounds.Height),
+                    null,
+                    Color.White,
+                    -MathHelper.PiOver2,
+                    Vector2.Zero,
+                    iconScale,
+                    SpriteEffects.None,
+                    0f
+                );
+            }
+            else
+            {
+                spriteBatch.Draw(frameTexture, iconBounds, Color.White);
+            }
 
             if (iconBounds.Contains(Game1.getMouseX(), Game1.getMouseY()))
                 DrawHudPhoneIconHoverOutline(spriteBatch, iconBounds);
@@ -325,7 +386,13 @@ namespace Smartphone
                 && canOpenPhoneMenu
                 && ShouldDrawHudPhoneIcon())
             {
-                var iconBounds = GetHudPhoneIconBounds();
+                bool isLandscape = false;
+                if (isHudPinned && ActiveExternalAppId != null && RegisteredPhoneApps.TryGetValue(ActiveExternalAppId, out var extApp))
+                {
+                    isLandscape = extApp.Landscape;
+                }
+
+                var iconBounds = GetHudPhoneIconBounds(isLandscape);
                 int sliderWidth = 120;
                 int sliderHeight = 16;
                 int sliderPadding = 8;
@@ -368,6 +435,11 @@ namespace Smartphone
             if (isHudPinned && phoneMenu != null && Game1.activeClickableMenu != phoneMenu)
             {
                 phoneMenu.update(Game1.currentGameTime);
+
+                if (ActiveExternalAppId != null && RegisteredPhoneApps.TryGetValue(ActiveExternalAppId, out var extApp))
+                {
+                    extApp.OnUpdateHudScreen?.Invoke(Game1.currentGameTime);
+                }
             }
             if (isDraggingHudIcon || isDraggingHudSlider)
             {
