@@ -302,17 +302,21 @@ namespace Smartphone
             int smallButtonW = scale(40);
             int smallButtonH = scale(40);
 
-            Rectangle incRect, decRect;
+            Rectangle incRect, decRect, pinRect;
+            bool isPinnedSupported = ModEntry.IsPassiveHudSupported(ModEntry.ActiveExternalAppId);
+
             if (landscape)
             {
                 int frameWidth = ModEntry.GetScaledPhoneFrameWidth();
                 incRect = new Rectangle(phoneX + scale(170), phoneY + frameWidth - scale(610) - smallButtonW, smallButtonW, smallButtonH);
                 decRect = new Rectangle(phoneX + scale(170) + scale(45), phoneY + frameWidth - scale(610) - smallButtonW, smallButtonW, smallButtonH);
+                pinRect = new Rectangle(phoneX + scale(170) + scale(90), phoneY + frameWidth - scale(610) - smallButtonW, smallButtonW, smallButtonH);
             }
             else
             {
                 incRect = new Rectangle(phoneX + scale(610), smallButtonY, smallButtonW, smallButtonH);
                 decRect = new Rectangle(phoneX + scale(610), smallButtonY + scale(45), smallButtonW, smallButtonH);
+                pinRect = new Rectangle(phoneX + scale(610), smallButtonY + scale(90), smallButtonW, smallButtonH);
             }
 
             bool showButtons = forceOn || ModEntry.Config.ShowSizeButton == "Always";
@@ -320,7 +324,7 @@ namespace Smartphone
             {
                 int mx = Game1.getMouseX(true);
                 int my = Game1.getMouseY(true);
-                if (decRect.Contains(mx, my) || incRect.Contains(mx, my))
+                if (decRect.Contains(mx, my) || incRect.Contains(mx, my) || (isPinnedSupported && pinRect.Contains(mx, my)))
                 {
                     showButtons = true;
                 }
@@ -337,6 +341,15 @@ namespace Smartphone
 
                 Vector2 incSize = Game1.smallFont.MeasureString("+") * scaleFactor;
                 b.DrawString(Game1.smallFont, "+", new Vector2(incRect.Center.X - incSize.X / 2f, incRect.Center.Y - incSize.Y / 2f), Color.Black, 0f, Vector2.Zero, scaleFactor, SpriteEffects.None, 1f);
+
+                if (isPinnedSupported)
+                {
+                    Color buttonBgColor = ModEntry.isHudPinned ? new Color(100, 220, 100) * 0.8f : Color.White * 0.6f;
+                    Textures.DrawCard(b, pinRect.X, pinRect.Y, pinRect.Width, pinRect.Height, buttonBgColor, 1f, false);
+
+                    Vector2 pinSize = Game1.smallFont.MeasureString("!") * scaleFactor;
+                    b.DrawString(Game1.smallFont, "!", new Vector2(pinRect.Center.X - pinSize.X / 2f, pinRect.Center.Y - pinSize.Y / 2f), Color.Black, 0f, Vector2.Zero, scaleFactor, SpriteEffects.None, 1f);
+                }
             }
         }
 
@@ -351,8 +364,23 @@ namespace Smartphone
             int smallButtonW = scale(40);
             int smallButtonH = scale(40);
 
-            var incRect = new Rectangle(phoneX + scale(610), smallButtonY, smallButtonW, smallButtonH);
-            var decRect = new Rectangle(phoneX + scale(610), smallButtonY + scale(45), smallButtonW, smallButtonH);
+            bool landscape = ModEntry.IsExternalAppLandscape(ModEntry.ActiveExternalAppId);
+            bool isPinnedSupported = ModEntry.IsPassiveHudSupported(ModEntry.ActiveExternalAppId);
+
+            Rectangle incRect, decRect, pinRect;
+            if (landscape)
+            {
+                int frameWidth = ModEntry.GetScaledPhoneFrameWidth();
+                incRect = new Rectangle(phoneX + scale(170), phoneY + frameWidth - scale(610) - smallButtonW, smallButtonW, smallButtonH);
+                decRect = new Rectangle(phoneX + scale(170) + scale(45), phoneY + frameWidth - scale(610) - smallButtonW, smallButtonW, smallButtonH);
+                pinRect = new Rectangle(phoneX + scale(170) + scale(90), phoneY + frameWidth - scale(610) - smallButtonW, smallButtonW, smallButtonH);
+            }
+            else
+            {
+                incRect = new Rectangle(phoneX + scale(610), smallButtonY, smallButtonW, smallButtonH);
+                decRect = new Rectangle(phoneX + scale(610), smallButtonY + scale(45), smallButtonW, smallButtonH);
+                pinRect = new Rectangle(phoneX + scale(610), smallButtonY + scale(90), smallButtonW, smallButtonH);
+            }
 
             if (decRect.Contains(x, y))
             {
@@ -362,6 +390,12 @@ namespace Smartphone
             if (incRect.Contains(x, y))
             {
                 ModEntry.Instance.AdjustPhoneSize(0.1f);
+                return true;
+            }
+            if (isPinnedSupported && pinRect.Contains(x, y))
+            {
+                ModEntry.isHudPinned = !ModEntry.isHudPinned;
+                Game1.playSound("drumkit6");
                 return true;
             }
 

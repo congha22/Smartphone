@@ -63,6 +63,32 @@ namespace Smartphone
             }
         }
 
+        public static bool IsPassiveHudSupported(string? compositeId)
+        {
+            if (string.IsNullOrWhiteSpace(compositeId)) return false;
+            lock (RegisteredPhoneAppsLock)
+            {
+                if (RegisteredPhoneApps.TryGetValue(compositeId, out var app))
+                {
+                    return app.OnDrawHudScreen != null;
+                }
+            }
+            return false;
+        }
+
+        public static bool IsExternalAppLandscape(string? compositeId)
+        {
+            if (string.IsNullOrWhiteSpace(compositeId)) return false;
+            lock (RegisteredPhoneAppsLock)
+            {
+                if (RegisteredPhoneApps.TryGetValue(compositeId, out var app))
+                {
+                    return app.Landscape;
+                }
+            }
+            return false;
+        }
+
         public static string GetRegisteredAppDisplayName(string appId)
         {
             lock (RegisteredPhoneAppsLock)
