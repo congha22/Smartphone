@@ -112,7 +112,7 @@ namespace Smartphone
         private Texture2D phoneBackgroundImageBlurred = null;
 
         private bool forcedFreeControllerCursor = false;
-        private float phoneUiScale;
+        internal float phoneUiScale;
 
         internal float PhoneUiScale => phoneUiScale;
 

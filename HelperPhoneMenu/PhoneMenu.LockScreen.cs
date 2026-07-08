@@ -16,7 +16,7 @@ namespace Smartphone
         #region Lock Screen State Fields
 
         /// <summary>Whether the phone is currently playing the sliding transition unlock animation.</summary>
-        private bool lockScreenUnlockAnimating = false;
+        internal bool lockScreenUnlockAnimating = false;
 
         /// <summary>Time elapsed since the start of the lock screen unlock animation, in seconds.</summary>
         private double lockScreenUnlockElapsedSeconds = 0d;
@@ -34,10 +34,10 @@ namespace Smartphone
         private double lockScreenInitializationNextTickSeconds = 0d;
 
         /// <summary>Soft corner cache for weather textures to match the UI style.</summary>
-        private readonly Dictionary<int, Texture2D> lockScreenWeatherIconSoftCache = new();
+        private readonly Dictionary<(int IconIndex, float Scale), Texture2D> lockScreenWeatherIconSoftCache = new();
 
-        private float lockScreenUnlockDragOffset = 0f;
-        private float lockScreenContentScrollOffset = 0f;
+        internal float lockScreenUnlockDragOffset = 0f;
+        internal float lockScreenContentScrollOffset = 0f;
         private float lockScreenContentScrollTarget = 0f;
         private float lockScreenStartScrollOffset = 0f;
         private readonly List<(Rectangle Bounds, int OriginalIndex)> lockScreenCardBounds = new();
@@ -81,7 +81,7 @@ namespace Smartphone
         /// </summary>
         /// <param name="b">The active SpriteBatch to draw with.</param>
         /// <param name="xOffset">Horizontal offset used for screen transition animations.</param>
-        private void DrawLockScreenScreen(SpriteBatch b, int xOffset)
+        internal void DrawLockScreenScreen(SpriteBatch b, int xOffset)
         {
             Rectangle contentBounds = GetPhoneContentBounds();
             lockScreenTapBounds = contentBounds;
@@ -544,7 +544,9 @@ namespace Smartphone
                 ? 999
                 : Math.Clamp(iconIndex, 0, 7);
 
-            if (lockScreenWeatherIconSoftCache.TryGetValue(safeIconIndex, out Texture2D? cachedTexture)
+            var cacheKey = (safeIconIndex, phoneUiScale);
+
+            if (lockScreenWeatherIconSoftCache.TryGetValue(cacheKey, out Texture2D? cachedTexture)
                 && cachedTexture != null
                 && !cachedTexture.IsDisposed)
             {
@@ -570,7 +572,7 @@ namespace Smartphone
             }
 
             Texture2D iconTexture = BuildLockScreenSoftWeatherIconTexture(sourceTexture, sourceRect, phoneUiScale);
-            lockScreenWeatherIconSoftCache[safeIconIndex] = iconTexture;
+            lockScreenWeatherIconSoftCache[cacheKey] = iconTexture;
             return iconTexture;
         }
 

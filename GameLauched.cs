@@ -51,33 +51,7 @@ namespace Smartphone
         private const int CameraViewportOffsetY = PhoneFrameContentOffsetY;
         private const int CameraViewportWidth = 520;
         private const int CameraViewportHeight = 810;
-        private const int HudPhoneMaxHeight = 150;
-        private const int HudPhoneMinHeight = 96;
-        private const int HudPhoneRightMargin = 18;
-        private const int HudPhoneTopMargin = 12;
-        private const int HudPhoneBottomMargin = 12;
-        private const int HudPhoneAboveEnergyOffset = 188;
-        private const int HudPhoneBadgeMinimumSize = 20;
-        private const int HudPhoneFrameContentOffsetX = 90;
-        private const int HudPhoneFrameContentOffsetY = 166;
-        private string hudPhoneBackgroundImagePath = string.Empty;
-        private Texture2D? hudPhoneBackgroundImage;
-        private int hudPhoneBackgroundImageTargetWidth = 0;
-        private int hudPhoneBackgroundImageTargetHeight = 0;
-        private bool isDraggingHudIcon = false;
-        private int dragStartMouseX;
-        private int dragStartMouseY;
-        private int dragStartOffsetX;
-        private int dragStartOffsetY;
-        private bool hasDraggedHudIcon = false;
-        private bool isDraggingHudSlider = false;
 
-        private static string cachedTimeText = string.Empty;
-        private static float cachedTextScale = 0f;
-        private static Vector2 cachedTextSize = Vector2.Zero;
-        private static string cachedCountText = string.Empty;
-        private static float cachedBadgeScale = 0f;
-        private static Vector2 cachedBadgeTextSize = Vector2.Zero;
 
         public static HashSet<string> ContactableNpcs = new(StringComparer.OrdinalIgnoreCase);
         // *************************** ENTRY ***************************
@@ -170,44 +144,9 @@ namespace Smartphone
                 return;
             }
 
-            if (e.Button == SButton.MouseLeft
-                && canOpenPhoneMenu
-                && ShouldDrawHudPhoneIcon())
+            if (HandleHudIconInteraction(e, canOpenPhoneMenu))
             {
-                var iconBounds = GetHudPhoneIconBounds();
-                int sliderWidth = 120;
-                int sliderHeight = 16;
-                int sliderPadding = 8;
-
-                int sliderX = iconBounds.Center.X - (sliderWidth / 2);
-                int sliderY = (iconBounds.Bottom + sliderPadding + sliderHeight > Game1.uiViewport.Height)
-                    ? iconBounds.Top - sliderPadding - sliderHeight
-                    : iconBounds.Bottom + sliderPadding;
-
-                Microsoft.Xna.Framework.Rectangle sliderBounds = new Microsoft.Xna.Framework.Rectangle(sliderX - 6, sliderY, sliderWidth + 12, sliderHeight);
-
-                bool isHoveringIcon = iconBounds.Contains(Game1.getMouseX(true), Game1.getMouseY(true));
-                bool isHoveringSlider = sliderBounds.Contains(Game1.getMouseX(true), Game1.getMouseY(true));
-                bool showSlider = (isHoveringIcon || isHoveringSlider || isDraggingHudSlider) && !isDraggingHudIcon;
-
-                if (showSlider && isHoveringSlider)
-                {
-                    isDraggingHudSlider = true;
-                    Helper.Input.Suppress(SButton.MouseLeft);
-                    UpdateSliderDrag();
-                    return;
-                }
-                else if (isHoveringIcon)
-                {
-                    isDraggingHudIcon = true;
-                    dragStartMouseX = Game1.getMouseX(true);
-                    dragStartMouseY = Game1.getMouseY(true);
-                    dragStartOffsetX = Config.HudPhoneIconOffsetX;
-                    dragStartOffsetY = Config.HudPhoneIconOffsetY;
-                    hasDraggedHudIcon = false;
-                    Helper.Input.Suppress(SButton.MouseLeft);
-                    return;
-                }
+                return;
             }
 
             // DEVTOOL
@@ -319,10 +258,8 @@ namespace Smartphone
             pendingPhoneOsInitialization = false;
             hasNewVersionAvailable = false;
 
-            DisposeHudPhoneBackgroundImage();
-            hudPhoneBackgroundImagePath = string.Empty;
-            hudPhoneBackgroundImageTargetWidth = 0;
-            hudPhoneBackgroundImageTargetHeight = 0;
+            hudPhoneRenderTarget?.Dispose();
+            hudPhoneRenderTarget = null;
         }
 
         private void OnTimeChange(object sender, TimeChangedEventArgs e)
@@ -335,6 +272,8 @@ namespace Smartphone
 
                 pendingInitNotification = false;
             }
+
+            NotificationManager.AddNotification(Game1.timeOfDay.ToString(), "Smartphone");
         }
 
 
@@ -346,22 +285,7 @@ namespace Smartphone
             phoneMenu.ResetToDefaultPosition();
         }
 
-        private void OnRenderedHud(object sender, RenderedHudEventArgs e)
-        {
-            if (!ShouldDrawHudPhoneIcon())
-                return;
 
-            DrawHudPhoneIcon(e.SpriteBatch);
-        }
-
-        private static bool ShouldDrawHudPhoneIcon()
-        {
-            return Config.ShowPhoneIcon
-                && Context.IsWorldReady
-                && Game1.displayHUD
-                && Game1.activeClickableMenu == null
-                && Game1.currentMinigame == null;
-        }
 
         internal static float GetConfiguredPhoneUiScale()
         {
@@ -442,335 +366,9 @@ namespace Smartphone
             Game1.activeClickableMenu = phoneMenu;
         }
 
-        private Microsoft.Xna.Framework.Rectangle GetHudPhoneIconBounds()
-        {
-            Texture2D? frameTexture = Textures.PhoneEmpty;
-            if (frameTexture == null || frameTexture.IsDisposed)
-                return Microsoft.Xna.Framework.Rectangle.Empty;
 
-            int viewportWidth = Math.Max(1, Game1.uiViewport.Width);
-            int viewportHeight = Math.Max(1, Game1.uiViewport.Height);
 
-            int baseIconHeight = Math.Clamp(viewportHeight / 7, HudPhoneMinHeight, HudPhoneMaxHeight);
-            int baseIconWidth = Math.Max(1, (int)Math.Round(frameTexture.Width * (baseIconHeight / (float)Math.Max(1, frameTexture.Height))));
 
-            int defaultX = viewportWidth - baseIconWidth - HudPhoneRightMargin;
-            int aboveEnergyOffset = Math.Max(HudPhoneAboveEnergyOffset, viewportHeight / 5);
-            int defaultY = viewportHeight - baseIconHeight - aboveEnergyOffset;
-
-            int configuredOffsetX = Math.Clamp(Config?.HudPhoneIconOffsetX ?? 0, -50000, 50000);
-            int configuredOffsetY = Math.Clamp(Config?.HudPhoneIconOffsetY ?? 0, -50000, 50000);
-
-            int centerX = defaultX + baseIconWidth / 2 + configuredOffsetX;
-            int centerY = defaultY + baseIconHeight / 2 + configuredOffsetY;
-
-            float scale = Config?.HudPhoneIconScale ?? 1f;
-            int iconHeight = Math.Max(1, (int)Math.Round(baseIconHeight * scale));
-            int iconWidth = Math.Max(1, (int)Math.Round(baseIconWidth * scale));
-
-            int x = centerX - iconWidth / 2;
-            int y = centerY - iconHeight / 2;
-
-            int clampedX = Math.Clamp(x, HudPhoneTopMargin, Math.Max(HudPhoneTopMargin, viewportWidth - iconWidth - HudPhoneTopMargin));
-            int clampedY = Math.Clamp(y, HudPhoneTopMargin, Math.Max(HudPhoneTopMargin, viewportHeight - iconHeight - HudPhoneBottomMargin));
-
-            // Adjust in-memory config offsets if they were clamped during active dragging to avoid dead-zones
-            if (isDraggingHudIcon && Config != null)
-            {
-                int newOffsetX = clampedX + iconWidth / 2 - defaultX - baseIconWidth / 2;
-                int newOffsetY = clampedY + iconHeight / 2 - defaultY - baseIconHeight / 2;
-
-                if (Config.HudPhoneIconOffsetX != newOffsetX || Config.HudPhoneIconOffsetY != newOffsetY)
-                {
-                    Config.HudPhoneIconOffsetX = newOffsetX;
-                    Config.HudPhoneIconOffsetY = newOffsetY;
-
-                    // Reset drag baseline coordinates so the relative drag remains in sync
-                    dragStartOffsetX = newOffsetX;
-                    dragStartOffsetY = newOffsetY;
-                    dragStartMouseX = Game1.getMouseX(true);
-                    dragStartMouseY = Game1.getMouseY(true);
-                }
-            }
-
-            return new Microsoft.Xna.Framework.Rectangle(clampedX, clampedY, iconWidth, iconHeight);
-        }
-
-        private void DrawHudPhoneIcon(SpriteBatch spriteBatch)
-        {
-            Texture2D? frameTexture = Textures.PhoneEmpty;
-            Texture2D? backgroundTexture = Textures.PhoneBackground;
-            if (frameTexture == null || backgroundTexture == null || frameTexture.IsDisposed || backgroundTexture.IsDisposed)
-                return;
-
-            Microsoft.Xna.Framework.Rectangle iconBounds = GetHudPhoneIconBounds();
-            if (iconBounds.Width <= 0 || iconBounds.Height <= 0)
-                return;
-
-            RefreshHudPhoneBackgroundImage();
-
-            float iconScale = iconBounds.Height / (float)Math.Max(1, frameTexture.Height);
-            Microsoft.Xna.Framework.Rectangle contentBounds = new Microsoft.Xna.Framework.Rectangle(
-                iconBounds.X + (int)Math.Round(HudPhoneFrameContentOffsetX * iconScale),
-                iconBounds.Y + (int)Math.Round(HudPhoneFrameContentOffsetY * iconScale),
-                Math.Max(1, (int)Math.Round(backgroundTexture.Width * iconScale)),
-                Math.Max(1, (int)Math.Round(backgroundTexture.Height * iconScale)));
-
-            spriteBatch.Draw(backgroundTexture, contentBounds, Color.White);
-
-            if (hudPhoneBackgroundImage != null && !hudPhoneBackgroundImage.IsDisposed)
-                spriteBatch.Draw(hudPhoneBackgroundImage, contentBounds, Color.White * 0.8f);
-
-            string timeText = Game1.getTimeOfDayString(Game1.timeOfDay);
-            float textScale = Math.Clamp(iconScale * 0.56f, 0.35f, 0.8f);
-
-            if (timeText != cachedTimeText || textScale != cachedTextScale)
-            {
-                cachedTimeText = timeText;
-                cachedTextScale = textScale;
-                cachedTextSize = Game1.smallFont.MeasureString(timeText) * textScale;
-            }
-
-            Vector2 textSize = cachedTextSize;
-            Vector2 textPosition = new Vector2(
-                contentBounds.Center.X - (textSize.X / 2f),
-                contentBounds.Y + Math.Max(4f, 15f * iconScale));
-
-            spriteBatch.DrawString(
-                Game1.smallFont,
-                timeText,
-                textPosition + new Vector2(1f, 1f),
-                new Color(0, 0, 0, 175),
-                0f,
-                Vector2.Zero,
-                textScale,
-                SpriteEffects.None,
-                1f);
-
-            spriteBatch.DrawString(
-                Game1.smallFont,
-                timeText,
-                textPosition,
-                Color.White,
-                0f,
-                Vector2.Zero,
-                textScale,
-                SpriteEffects.None,
-                1f);
-
-            spriteBatch.Draw(frameTexture, iconBounds, Color.White);
-
-            if (HasAnyHudPhoneAlert())
-                DrawHudPhoneAlertBadge(spriteBatch, iconBounds);
-
-            if (iconBounds.Contains(Game1.getMouseX(), Game1.getMouseY()))
-                DrawHudPhoneIconHoverOutline(spriteBatch, iconBounds);
-
-            int sliderWidth = 120;
-            int sliderHeight = 16;
-            int sliderPadding = 8;
-            int sliderX = iconBounds.Center.X - (sliderWidth / 2);
-            int sliderY = (iconBounds.Bottom + sliderPadding + sliderHeight > Game1.uiViewport.Height)
-                ? iconBounds.Top - sliderPadding - sliderHeight
-                : iconBounds.Bottom + sliderPadding;
-
-            Microsoft.Xna.Framework.Rectangle sliderBounds = new Microsoft.Xna.Framework.Rectangle(sliderX - 6, sliderY, sliderWidth + 12, sliderHeight);
-
-            bool isHoveringIcon = iconBounds.Contains(Game1.getMouseX(true), Game1.getMouseY(true));
-            bool isHoveringSlider = sliderBounds.Contains(Game1.getMouseX(true), Game1.getMouseY(true));
-            bool showSlider = (isHoveringIcon || isHoveringSlider || isDraggingHudSlider) && !isDraggingHudIcon;
-
-            if (showSlider)
-            {
-                // 1. Draw background panel (glassmorphism/semi-transparent)
-                Microsoft.Xna.Framework.Rectangle bgRect = new Microsoft.Xna.Framework.Rectangle(sliderBounds.X, sliderBounds.Y, sliderBounds.Width, sliderBounds.Height);
-                spriteBatch.Draw(Game1.staminaRect, bgRect, Color.Black * 0.6f);
-
-                // Draw border for the panel
-                Color borderColor = Color.White * 0.3f;
-                spriteBatch.Draw(Game1.staminaRect, new Microsoft.Xna.Framework.Rectangle(bgRect.X, bgRect.Y, bgRect.Width, 1), borderColor);
-                spriteBatch.Draw(Game1.staminaRect, new Microsoft.Xna.Framework.Rectangle(bgRect.X, bgRect.Bottom - 1, bgRect.Width, 1), borderColor);
-                spriteBatch.Draw(Game1.staminaRect, new Microsoft.Xna.Framework.Rectangle(bgRect.X, bgRect.Y, 1, bgRect.Height), borderColor);
-                spriteBatch.Draw(Game1.staminaRect, new Microsoft.Xna.Framework.Rectangle(bgRect.Right - 1, bgRect.Y, 1, bgRect.Height), borderColor);
-
-                // 2. Draw track line
-                Microsoft.Xna.Framework.Rectangle trackRect = new Microsoft.Xna.Framework.Rectangle(sliderX, sliderY + (sliderHeight / 2) - 1, sliderWidth, 2);
-                spriteBatch.Draw(Game1.staminaRect, trackRect, Color.Gray * 0.8f);
-
-                // 3. Draw knob
-                float minScale = 1f;
-                float maxScale = 6f;
-                float currentScale = Config?.HudPhoneIconScale ?? 1f;
-                float percent = Math.Clamp((currentScale - minScale) / (maxScale - minScale), 0f, 1f);
-
-                int knobSize = 10;
-                int knobX = sliderX + (int)Math.Round(percent * sliderWidth) - (knobSize / 2);
-                int knobY = sliderY + (sliderHeight / 2) - (knobSize / 2);
-                Microsoft.Xna.Framework.Rectangle knobRect = new Microsoft.Xna.Framework.Rectangle(knobX, knobY, knobSize, knobSize);
-
-                bool isHoveringKnob = knobRect.Contains(Game1.getMouseX(true), Game1.getMouseY(true));
-                Color knobColor = (isHoveringKnob || isDraggingHudSlider) ? Color.White : Color.LightGray;
-
-                spriteBatch.Draw(Game1.staminaRect, knobRect, knobColor);
-            }
-        }
-
-        private static bool HasAnyHudPhoneAlert()
-        {
-            if (NotificationManager.GetUnreadNotification() > 0)
-                return true;
-
-            return false;
-        }
-
-        private static void DrawHudPhoneAlertBadge(SpriteBatch spriteBatch, Microsoft.Xna.Framework.Rectangle iconBounds)
-        {
-            int badgeSize = Math.Max(HudPhoneBadgeMinimumSize, iconBounds.Width / 3);
-            int badgeX = iconBounds.Right - badgeSize + 6;
-            int badgeY = Math.Max(2, iconBounds.Y - (badgeSize / 2) + 8);
-
-            Textures.DrawCard(
-                spriteBatch,
-                badgeX,
-                badgeY,
-                badgeSize,
-                badgeSize,
-                new Color(222, 44, 44, 235),
-                (float)badgeSize / 60f,
-                false);
-
-            const string alertSymbol = "!";
-            float textScale = Math.Clamp(badgeSize / 28f, 0.75f, 1.15f);
-
-            if (alertSymbol != cachedCountText || textScale != cachedBadgeScale)
-            {
-                cachedCountText = alertSymbol;
-                cachedBadgeScale = textScale;
-                cachedBadgeTextSize = Game1.smallFont.MeasureString(alertSymbol) * textScale;
-            }
-
-            Vector2 textSize = cachedBadgeTextSize;
-            Vector2 textPosition = new Vector2(
-                badgeX + ((badgeSize - textSize.X) / 2f),
-                badgeY + ((badgeSize - textSize.Y) / 2f) - 1f);
-
-            spriteBatch.DrawString(
-                Game1.smallFont,
-                alertSymbol,
-                textPosition + new Vector2(1f, 1f),
-                new Color(0, 0, 0, 175),
-                0f,
-                Vector2.Zero,
-                textScale,
-                SpriteEffects.None,
-                1f);
-
-            spriteBatch.DrawString(
-                Game1.smallFont,
-                alertSymbol,
-                textPosition,
-                Color.White,
-                0f,
-                Vector2.Zero,
-                textScale,
-                SpriteEffects.None,
-                1f);
-        }
-
-        private static void DrawHudPhoneIconHoverOutline(SpriteBatch spriteBatch, Microsoft.Xna.Framework.Rectangle iconBounds)
-        {
-            Microsoft.Xna.Framework.Rectangle outlineBounds = new Microsoft.Xna.Framework.Rectangle(
-                iconBounds.X - 2,
-                iconBounds.Y - 2,
-                iconBounds.Width + 4,
-                iconBounds.Height + 4);
-
-            Color outlineColor = Color.White * 0.65f;
-
-            spriteBatch.Draw(Game1.staminaRect, new Microsoft.Xna.Framework.Rectangle(outlineBounds.X, outlineBounds.Y, outlineBounds.Width, 2), outlineColor);
-            spriteBatch.Draw(Game1.staminaRect, new Microsoft.Xna.Framework.Rectangle(outlineBounds.X, outlineBounds.Bottom - 2, outlineBounds.Width, 2), outlineColor);
-            spriteBatch.Draw(Game1.staminaRect, new Microsoft.Xna.Framework.Rectangle(outlineBounds.X, outlineBounds.Y, 2, outlineBounds.Height), outlineColor);
-            spriteBatch.Draw(Game1.staminaRect, new Microsoft.Xna.Framework.Rectangle(outlineBounds.Right - 2, outlineBounds.Y, 2, outlineBounds.Height), outlineColor);
-        }
-
-        private void RefreshHudPhoneBackgroundImage()
-        {
-            Texture2D? backgroundTexture = Textures.PhoneBackground;
-            int targetWidth = Math.Max(1, backgroundTexture?.Width ?? 520);
-            int targetHeight = Math.Max(1, backgroundTexture?.Height ?? 810);
-
-            string imagePath = (ModEntry.currentPhoneBackground ?? string.Empty).Trim();
-            bool pathChanged = !string.Equals(hudPhoneBackgroundImagePath, imagePath, StringComparison.OrdinalIgnoreCase);
-            bool sizeChanged = hudPhoneBackgroundImageTargetWidth != targetWidth || hudPhoneBackgroundImageTargetHeight != targetHeight;
-
-            if (!pathChanged && !sizeChanged)
-                return;
-
-            DisposeHudPhoneBackgroundImage();
-
-            hudPhoneBackgroundImagePath = imagePath;
-            hudPhoneBackgroundImageTargetWidth = targetWidth;
-            hudPhoneBackgroundImageTargetHeight = targetHeight;
-
-            if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath))
-                return;
-
-            try
-            {
-                using FileStream stream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                using Texture2D sourceImage = Texture2D.FromStream(Game1.graphics.GraphicsDevice, stream);
-                hudPhoneBackgroundImage = FitTextureToTargetSize(sourceImage, targetWidth, targetHeight);
-            }
-            catch (Exception ex)
-            {
-                SMonitor.Log($"Failed to load HUD phone background image '{imagePath}': {ex.Message}", LogLevel.Trace);
-            }
-        }
-
-        private void DisposeHudPhoneBackgroundImage()
-        {
-            if (hudPhoneBackgroundImage != null && !hudPhoneBackgroundImage.IsDisposed)
-                hudPhoneBackgroundImage.Dispose();
-
-            hudPhoneBackgroundImage = null;
-        }
-
-        private static Texture2D FitTextureToTargetSize(Texture2D sourceTexture, int targetWidth, int targetHeight)
-        {
-            int safeTargetWidth = Math.Max(1, targetWidth);
-            int safeTargetHeight = Math.Max(1, targetHeight);
-
-            int sourceWidth = Math.Max(1, sourceTexture.Width);
-            int sourceHeight = Math.Max(1, sourceTexture.Height);
-
-            Color[] sourceData = new Color[sourceWidth * sourceHeight];
-            sourceTexture.GetData(sourceData);
-
-            Color[] targetData = new Color[safeTargetWidth * safeTargetHeight];
-
-            float scale = Math.Min(safeTargetWidth / (float)sourceWidth, safeTargetHeight / (float)sourceHeight);
-            int drawWidth = Math.Max(1, (int)Math.Round(sourceWidth * scale));
-            int drawHeight = Math.Max(1, (int)Math.Round(sourceHeight * scale));
-            int drawOffsetX = (safeTargetWidth - drawWidth) / 2;
-            int drawOffsetY = (safeTargetHeight - drawHeight) / 2;
-
-            for (int drawY = 0; drawY < drawHeight; drawY++)
-            {
-                int sourceY = Math.Min(sourceHeight - 1, (int)(drawY * (sourceHeight / (float)drawHeight)));
-                int targetY = drawOffsetY + drawY;
-
-                for (int drawX = 0; drawX < drawWidth; drawX++)
-                {
-                    int sourceX = Math.Min(sourceWidth - 1, (int)(drawX * (sourceWidth / (float)drawWidth)));
-                    int targetX = drawOffsetX + drawX;
-                    targetData[targetY * safeTargetWidth + targetX] = sourceData[sourceY * sourceWidth + sourceX];
-                }
-            }
-
-            Texture2D fittedTexture = new Texture2D(Game1.graphics.GraphicsDevice, safeTargetWidth, safeTargetHeight);
-            fittedTexture.SetData(targetData);
-            return fittedTexture;
-        }
 
 
         private static async Task<(bool IsLatest, string? LatestVersion, string? LatestUrl)> CheckForModUpdate(IModInfo modInfo)
@@ -896,85 +494,7 @@ namespace Smartphone
             if (!Context.IsWorldReady)
                 return;
 
-            if (isDraggingHudIcon || isDraggingHudSlider)
-            {
-                bool isPhysicallyDown = Helper.Input.IsDown(SButton.MouseLeft) || Helper.Input.IsSuppressed(SButton.MouseLeft);
-
-                if (!isPhysicallyDown)
-                {
-                    if (isDraggingHudIcon)
-                    {
-                        isDraggingHudIcon = false;
-                        if (hasDraggedHudIcon)
-                        {
-                            Helper.WriteConfig(Config);
-                        }
-                        else
-                        {
-                            OpenPhoneFromHudTrigger();
-                        }
-                        hasDraggedHudIcon = false;
-                    }
-                    else if (isDraggingHudSlider)
-                    {
-                        isDraggingHudSlider = false;
-                        Helper.WriteConfig(Config);
-                    }
-                    return;
-                }
-            }
-
-            if (isDraggingHudIcon)
-            {
-                int currentMouseX = Game1.getMouseX(true);
-                int currentMouseY = Game1.getMouseY(true);
-                int deltaX = currentMouseX - dragStartMouseX;
-                int deltaY = currentMouseY - dragStartMouseY;
-
-                if (Math.Abs(deltaX) > 5 || Math.Abs(deltaY) > 5)
-                {
-                    hasDraggedHudIcon = true;
-                }
-
-                Config.HudPhoneIconOffsetX = dragStartOffsetX + deltaX;
-                Config.HudPhoneIconOffsetY = dragStartOffsetY + deltaY;
-            }
-            else if (isDraggingHudSlider)
-            {
-                UpdateSliderDrag();
-            }
-        }
-
-        private void UpdateSliderDrag()
-        {
-            int viewportWidth = Math.Max(1, Game1.uiViewport.Width);
-            int viewportHeight = Math.Max(1, Game1.uiViewport.Height);
-
-            Texture2D? frameTexture = Textures.PhoneEmpty;
-            if (frameTexture == null || frameTexture.IsDisposed)
-                return;
-
-            int baseIconHeight = Math.Clamp(viewportHeight / 7, HudPhoneMinHeight, HudPhoneMaxHeight);
-            int baseIconWidth = Math.Max(1, (int)Math.Round(frameTexture.Width * (baseIconHeight / (float)Math.Max(1, frameTexture.Height))));
-            int defaultX = viewportWidth - baseIconWidth - HudPhoneRightMargin;
-            int centerX = defaultX + baseIconWidth / 2 + (Config?.HudPhoneIconOffsetX ?? 0);
-
-            int sliderWidth = 120;
-            int sliderX = centerX - (sliderWidth / 2);
-
-            int currentMouseX = Game1.getMouseX(true);
-            int relativeMouseX = currentMouseX - sliderX;
-            float percent = Math.Clamp((float)relativeMouseX / sliderWidth, 0f, 1f);
-
-            float minScale = 1f;
-            float maxScale = 6f;
-            float newScale = minScale + percent * (maxScale - minScale);
-            newScale = MathF.Round(newScale, 2);
-
-            if (Config != null)
-            {
-                Config.HudPhoneIconScale = newScale;
-            }
+            UpdateHudIconDragging();
         }
     }
 }
