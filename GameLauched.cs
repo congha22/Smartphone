@@ -54,6 +54,7 @@ namespace Smartphone
 
 
         public static HashSet<string> ContactableNpcs = new(StringComparer.OrdinalIgnoreCase);
+        public static bool isHudPinned = false;
         // *************************** ENTRY ***************************
         //
 
@@ -260,6 +261,7 @@ namespace Smartphone
 
             hudPhoneRenderTarget?.Dispose();
             hudPhoneRenderTarget = null;
+            isHudPinned = false;
         }
 
         private void OnTimeChange(object sender, TimeChangedEventArgs e)

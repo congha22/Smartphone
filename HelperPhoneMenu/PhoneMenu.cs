@@ -79,6 +79,7 @@ namespace Smartphone
         private ClickableTextureComponent homeButton;
         private ClickableComponent decreaseSizeButton;
         private ClickableComponent increaseSizeButton;
+        private ClickableComponent pinButton;
 
 
         // apps
@@ -382,6 +383,17 @@ namespace Smartphone
             {
                 decreaseSizeButton.bounds = new Rectangle(this.xPositionOnScreen + ScaleUiValue(610), smallButtonY + ScaleUiValue(45), smallButtonW, smallButtonH);
             }
+
+            if (pinButton == null)
+            {
+                pinButton = new ClickableComponent(
+                    new Rectangle(this.xPositionOnScreen + ScaleUiValue(610), smallButtonY + ScaleUiValue(90), smallButtonW, smallButtonH),
+                    "pin_hud");
+            }
+            else
+            {
+                pinButton.bounds = new Rectangle(this.xPositionOnScreen + ScaleUiValue(610), smallButtonY + ScaleUiValue(90), smallButtonW, smallButtonH);
+            }
         }
 
         public override void draw(SpriteBatch b)
@@ -436,7 +448,7 @@ namespace Smartphone
                 {
                     int mx = Game1.getMouseX(true);
                     int my = Game1.getMouseY(true);
-                    if (decreaseSizeButton.bounds.Contains(mx, my) || increaseSizeButton.bounds.Contains(mx, my))
+                    if (decreaseSizeButton.bounds.Contains(mx, my) || increaseSizeButton.bounds.Contains(mx, my) || (pinButton != null && pinButton.bounds.Contains(mx, my)))
                     {
                         showButtons = true;
                     }
@@ -446,6 +458,11 @@ namespace Smartphone
                 {
                     DrawPhoneRoundButton(b, decreaseSizeButton.bounds, "-", Color.Black, Color.White * 0.6f);
                     DrawPhoneRoundButton(b, increaseSizeButton.bounds, "+", Color.Black, Color.White * 0.6f);
+                    if (pinButton != null)
+                    {
+                        Color buttonBgColor = ModEntry.isHudPinned ? new Color(100, 220, 100) * 0.8f : Color.White * 0.6f;
+                        DrawPhoneRoundButton(b, pinButton.bounds, "P", Color.Black, buttonBgColor);
+                    }
                 }
             }
 
@@ -786,6 +803,20 @@ namespace Smartphone
                 if (increaseSizeButton.bounds.Contains(x, y))
                 {
                     ModEntry.Instance.AdjustPhoneSize(0.1f);
+                    return;
+                }
+                if (pinButton != null && pinButton.bounds.Contains(x, y))
+                {
+                    if (ModEntry.isHudPinned)
+                    {
+                        ModEntry.isHudPinned = false;
+                        Game1.playSound("smallSelect");
+                    }
+                    else
+                    {
+                        ModEntry.isHudPinned = true;
+                        Game1.playSound("bigSelect");
+                    }
                     return;
                 }
             }
@@ -1761,10 +1792,14 @@ namespace Smartphone
 
         public void ClosePhoneMenu()
         {
-            CloseAppStoreApp();
-            if (currentApp == "appPhoto")
+            if (!ModEntry.isHudPinned)
             {
-                ClosePhotoApp();
+                CloseAppStoreApp();
+                if (currentApp == "appPhoto")
+                {
+                    ClosePhotoApp();
+                }
+                currentApp = null;
             }
 
             SetPhoneTextInputFocus(false);
@@ -1777,11 +1812,52 @@ namespace Smartphone
 
 
 
-            currentApp = null;
-
             RestoreControllerCursorSetting();
             exitThisMenu();
         }
 
+        internal void DrawScreenContent(SpriteBatch b)
+        {
+            if (currentApp == null)
+            {
+                if (rootLandingState == RootLandingState.Initializing)
+                {
+                    DrawLockScreenInitializationScreen(b, xOffset: 0);
+                }
+                else if (rootLandingState == RootLandingState.LockScreen || lockScreenUnlockAnimating)
+                {
+                    DrawHomeLandingScreen(b, xOffset: 0, drawApps: true);
+                    DrawLockScreenScreen(b, xOffset: 0);
+                }
+                else
+                {
+                    DrawHomeLandingScreen(b, xOffset: 0, drawApps: true);
+                }
+            }
+            else if (currentApp == "appCamera")
+            {
+                DrawCameraApp(b);
+            }
+            else if (currentApp == "appPhoto")
+            {
+                DrawPhotoApp(b);
+            }
+            else if (currentApp == "appSetting")
+            {
+                DrawSettingMenu(b);
+            }
+            else if (currentApp == "appStore")
+            {
+                DrawAppStoreApp(b);
+            }
+            else if (currentApp == "appNotification")
+            {
+                DrawNotificationApp(b);
+            }
+            else if (currentApp == "appPhone")
+            {
+                DrawPhoneApp(b);
+            }
+        }
     }
 }

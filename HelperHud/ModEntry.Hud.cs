@@ -134,7 +134,9 @@ namespace Smartphone
                         targetHeight,
                         false,
                         SurfaceFormat.Color,
-                        DepthFormat.None
+                        DepthFormat.None,
+                        0,
+                        RenderTargetUsage.PreserveContents
                     );
                 }
 
@@ -168,14 +170,24 @@ namespace Smartphone
                     phoneMenu.height = PhoneFrameBaseHeight;
                     phoneMenu.phoneUiScale = 1.0f;
 
-                    phoneMenu.lockScreenUnlockAnimating = false;
-                    phoneMenu.lockScreenUnlockDragOffset = 0f;
-                    phoneMenu.lockScreenContentScrollOffset = 0f;
-                    phoneMenu.rootLandingState = PhoneMenu.RootLandingState.LockScreen;
+                    if (!isHudPinned)
+                    {
+                        phoneMenu.lockScreenUnlockAnimating = false;
+                        phoneMenu.lockScreenUnlockDragOffset = 0f;
+                        phoneMenu.lockScreenContentScrollOffset = 0f;
+                        phoneMenu.rootLandingState = PhoneMenu.RootLandingState.LockScreen;
+                    }
 
-                    // 5. Draw lock screen to off-screen buffer using standard clamp sampling
+                    // 5. Draw screen content to off-screen buffer using standard clamp sampling
                     spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp);
-                    phoneMenu.DrawLockScreenScreen(spriteBatch, 0);
+                    if (isHudPinned)
+                    {
+                        phoneMenu.DrawScreenContent(spriteBatch);
+                    }
+                    else
+                    {
+                        phoneMenu.DrawLockScreenScreen(spriteBatch, 0);
+                    }
                     spriteBatch.End();
                 }
                 finally
@@ -353,6 +365,10 @@ namespace Smartphone
 
         internal void UpdateHudIconDragging()
         {
+            if (isHudPinned && phoneMenu != null && Game1.activeClickableMenu != phoneMenu)
+            {
+                phoneMenu.update(Game1.currentGameTime);
+            }
             if (isDraggingHudIcon || isDraggingHudSlider)
             {
                 bool isPhysicallyDown = Helper.Input.IsDown(SButton.MouseLeft) || Helper.Input.IsSuppressed(SButton.MouseLeft);
