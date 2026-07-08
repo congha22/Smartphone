@@ -120,6 +120,16 @@ namespace Smartphone
                 landscape);
         }
 
+        public bool IsHudPinned()
+        {
+            return ModEntry.isHudPinned;
+        }
+
+        public string? GetPinnedAppId()
+        {
+            return ModEntry.ActiveExternalAppId;
+        }
+
         public void SetComponentTheme(string component, string theme)
         {
             AssetHelper.SetComponentTheme(component, theme);
@@ -201,17 +211,18 @@ namespace Smartphone
 
         public int GetPhoneFrameWidth()
         {
-            return ModEntry.GetScaledPhoneFrameWidth();
+            return ModEntry.GetScaledPhoneFrameWidth(this.GetPhoneUiScale());
         }
 
         public int GetPhoneFrameHeight()
         {
-            return ModEntry.GetScaledPhoneFrameHeight();
+            return ModEntry.GetScaledPhoneFrameHeight(this.GetPhoneUiScale());
         }
 
         public (int offsetX, int offsetY) GetPhoneContentOffset()
         {
-            return (ModEntry.GetScaledPhoneContentOffsetX(), ModEntry.GetScaledPhoneContentOffsetY());
+            float scale = this.GetPhoneUiScale();
+            return (ModEntry.GetScaledPhoneContentOffsetX(scale), ModEntry.GetScaledPhoneContentOffsetY(scale));
         }
 
         public Texture2D? GetPhoneFrameTexture()
@@ -267,7 +278,7 @@ namespace Smartphone
                 else
                 {
                     Game1.activeClickableMenu?.exitThisMenuNoSound();
-                    ModEntry.OpenPhoneFromHudTrigger();
+                    ModEntry.OpenPhoneFromHudTrigger(forceDefault: true);
                 }
                 return true;
             }
@@ -284,7 +295,7 @@ namespace Smartphone
                 Game1.playSound("bigSelect");
                 Game1.activeClickableMenu?.exitThisMenuNoSound();
                 PhoneMenu.currentApp = null;
-                ModEntry.OpenPhoneFromHudTrigger();
+                ModEntry.OpenPhoneFromHudTrigger(forceDefault: true);
                 return true;
             }
 
@@ -307,7 +318,7 @@ namespace Smartphone
 
             if (landscape)
             {
-                int frameWidth = ModEntry.GetScaledPhoneFrameWidth();
+                int frameWidth = ModEntry.GetScaledPhoneFrameWidth(uiScale);
                 incRect = new Rectangle(phoneX + scale(170), phoneY + frameWidth - scale(610) - smallButtonW, smallButtonW, smallButtonH);
                 decRect = new Rectangle(phoneX + scale(170) + scale(45), phoneY + frameWidth - scale(610) - smallButtonW, smallButtonW, smallButtonH);
                 pinRect = new Rectangle(phoneX + scale(170) + scale(90), phoneY + frameWidth - scale(610) - smallButtonW, smallButtonW, smallButtonH);
@@ -370,7 +381,7 @@ namespace Smartphone
             Rectangle incRect, decRect, pinRect;
             if (landscape)
             {
-                int frameWidth = ModEntry.GetScaledPhoneFrameWidth();
+                int frameWidth = ModEntry.GetScaledPhoneFrameWidth(uiScale);
                 incRect = new Rectangle(phoneX + scale(170), phoneY + frameWidth - scale(610) - smallButtonW, smallButtonW, smallButtonH);
                 decRect = new Rectangle(phoneX + scale(170) + scale(45), phoneY + frameWidth - scale(610) - smallButtonW, smallButtonW, smallButtonH);
                 pinRect = new Rectangle(phoneX + scale(170) + scale(90), phoneY + frameWidth - scale(610) - smallButtonW, smallButtonW, smallButtonH);

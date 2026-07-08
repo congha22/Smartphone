@@ -126,13 +126,13 @@ namespace Smartphone
 
             bool isPhoneMenuOpen = Game1.activeClickableMenu != null && Game1.activeClickableMenu == phoneMenu;
             bool isTyping = Game1.keyboardDispatcher.Subscriber != null;
-            if (!isTyping && (canOpenPhoneMenu || isPhoneMenuOpen) && e.Button == Config.DecreasePhoneSizeKey)
+            if (!isTyping && isPhoneOpen && e.Button == Config.DecreasePhoneSizeKey)
             {
                 AdjustPhoneSize(-0.1f);
                 Helper.Input.Suppress(e.Button);
                 return;
             }
-            if (!isTyping && (canOpenPhoneMenu || isPhoneMenuOpen) && e.Button == Config.IncreasePhoneSizeKey)
+            if (!isTyping && isPhoneOpen && e.Button == Config.IncreasePhoneSizeKey)
             {
                 AdjustPhoneSize(0.1f);
                 Helper.Input.Suppress(e.Button);
@@ -296,6 +296,9 @@ namespace Smartphone
 
         internal static float GetActivePhoneUiScale()
         {
+            if (isHudPinned && !isPhoneOpen)
+                return 1.0f;
+
             if (phoneMenu != null)
                 return phoneMenu.PhoneUiScale;
 
@@ -359,10 +362,19 @@ namespace Smartphone
                 phoneMenu = new PhoneMenu();
         }
 
-        public static void OpenPhoneFromHudTrigger()
+        public static void OpenPhoneFromHudTrigger(bool forceDefault = false)
         {
+            isPhoneOpen = true;
             EnsurePhoneMenuUsesCurrentScale();
             PhoneMenu.UpdateNpcNumbers();
+
+            if (!forceDefault && isHudPinned && !string.IsNullOrWhiteSpace(ActiveExternalAppId))
+            {
+                if (TryInvokeRegisteredPhoneApp(ActiveExternalAppId, phoneMenu))
+                {
+                    return;
+                }
+            }
 
             phoneMenu.OpenLockScreen();
             Game1.activeClickableMenu = phoneMenu;

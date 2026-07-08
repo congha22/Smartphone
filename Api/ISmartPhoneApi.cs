@@ -305,5 +305,15 @@ namespace Smartphone
             Action<GameTime>? onUpdateHudScreen = null,
             bool landscape = false
         );
+
+        /// <summary>
+        /// Checks if the HUD icon is currently pinned.
+        /// </summary>
+        bool IsHudPinned();
+
+        /// <summary>
+        /// Gets the composite ID of the currently pinned external app.
+        /// </summary>
+        string? GetPinnedAppId();
     }
 }

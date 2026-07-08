@@ -432,7 +432,12 @@ namespace Smartphone
 
         internal void UpdateHudIconDragging()
         {
-            if (isHudPinned && phoneMenu != null && Game1.activeClickableMenu != phoneMenu)
+            if (Game1.activeClickableMenu == null)
+            {
+                isPhoneOpen = false;
+            }
+
+            if (isHudPinned && phoneMenu != null && !isPhoneOpen)
             {
                 phoneMenu.update(Game1.currentGameTime);
 

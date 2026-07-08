@@ -846,7 +846,7 @@ namespace Smartphone
                     return;
                 }
                 ClosePhoneMenu();
-                ModEntry.OpenPhoneFromHudTrigger();
+                ModEntry.OpenPhoneFromHudTrigger(forceDefault: true);
                 return;
             }
 

@@ -54,6 +54,7 @@ namespace Smartphone
         private static readonly Dictionary<string, RegisteredPhoneApp> RegisteredPhoneApps = new(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, RegisteredChatQuickActionButton> RegisteredChatQuickActionButtons = new(StringComparer.OrdinalIgnoreCase);
         public static string? ActiveExternalAppId = null;
+        public static bool isPhoneOpen = false;
 
         public static List<string> GetRegisteredAppIds()
         {
@@ -420,6 +421,7 @@ namespace Smartphone
                 if (app.ClosePhoneOnLaunch)
                     menu.ClosePhoneMenu();
 
+                isPhoneOpen = true;
                 ActiveExternalAppId = compositeId;
                 app.OnClick?.Invoke();
                 return true;
