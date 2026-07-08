@@ -461,7 +461,7 @@ namespace Smartphone
                     if (pinButton != null)
                     {
                         Color buttonBgColor = ModEntry.isHudPinned ? new Color(100, 220, 100) * 0.8f : Color.White * 0.6f;
-                        DrawPhoneRoundButton(b, pinButton.bounds, "P", Color.Black, buttonBgColor);
+                        DrawPhoneRoundButton(b, pinButton.bounds, "!", Color.Black, buttonBgColor);
                     }
                 }
             }

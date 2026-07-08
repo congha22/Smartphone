@@ -285,8 +285,12 @@ namespace Smartphone
         /// <param name="onComplete">Callback invoked when user finishes selection or cancels (passes JSON string representing List of SelectedPhotoResult, or empty list).</param>
         void RetrievePhotos(int limit, bool getTexture, bool getMetadata, Action<string> onComplete, bool squareOnly = false);
 
+        // =========================================================
+        // 8. Utility
+        // =========================================================
+
         /// <summary>
-        /// Registers draw and update callbacks for the passive HUD preview mode of an app.
+        /// Registers draw and update callbacks for the passive HUD icon preview mode of an app.
         /// </summary>
         /// <param name="ownerModId">The unique ID of the mod that owns this app.</param>
         /// <param name="appId">The app ID that was used during registration.</param>

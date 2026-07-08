@@ -123,8 +123,8 @@ namespace Smartphone
             // Ensure phone menu instance is initialized and scale-synced
             EnsurePhoneMenuUsesCurrentScale();
 
-            int targetWidth = isLandscape ? (Textures.PhoneBackground?.Height ?? 810) : (Textures.PhoneBackground?.Width ?? 520);
-            int targetHeight = isLandscape ? (Textures.PhoneBackground?.Width ?? 520) : (Textures.PhoneBackground?.Height ?? 810);
+            int targetWidth = isLandscape ? 854 : 520;
+            int targetHeight = isLandscape ? 520 : 854;
             float iconScale = isLandscape
                 ? iconBounds.Height / (float)Math.Max(1, frameTexture.Width)
                 : iconBounds.Height / (float)Math.Max(1, frameTexture.Height);
