@@ -42,7 +42,8 @@ namespace Smartphone
                 && Context.IsWorldReady
                 && Game1.displayHUD
                 && Game1.activeClickableMenu == null
-                && Game1.currentMinigame == null;
+                && Game1.currentMinigame == null
+                && !Game1.game1.takingMapScreenshot;
         }
 
         private Microsoft.Xna.Framework.Rectangle GetHudPhoneIconBounds(bool isLandscape = false)
