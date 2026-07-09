@@ -124,7 +124,6 @@ namespace Smartphone
 
             bool canOpenPhoneMenu = Game1.activeClickableMenu == null && Game1.currentMinigame == null;
 
-            bool isPhoneMenuOpen = Game1.activeClickableMenu != null && Game1.activeClickableMenu == phoneMenu;
             bool isTyping = Game1.keyboardDispatcher.Subscriber != null;
             if (!isTyping && isPhoneOpen && e.Button == Config.DecreasePhoneSizeKey)
             {
@@ -274,8 +273,6 @@ namespace Smartphone
 
                 pendingInitNotification = false;
             }
-
-            NotificationManager.AddNotification(Game1.timeOfDay.ToString(), "Smartphone");
         }
 
 
@@ -368,10 +365,18 @@ namespace Smartphone
             EnsurePhoneMenuUsesCurrentScale();
             PhoneMenu.UpdateNpcNumbers();
 
-            if (!forceDefault && isHudPinned && !string.IsNullOrWhiteSpace(ActiveExternalAppId))
+            if (!forceDefault && isHudPinned)
             {
-                if (TryInvokeRegisteredPhoneApp(ActiveExternalAppId, phoneMenu))
+                if (!string.IsNullOrWhiteSpace(ActiveExternalAppId) && IsPassiveHudSupported(ActiveExternalAppId))
                 {
+                    if (TryInvokeRegisteredPhoneApp(ActiveExternalAppId, phoneMenu))
+                    {
+                        return;
+                    }
+                }
+                else
+                {
+                    Game1.activeClickableMenu = phoneMenu;
                     return;
                 }
             }
