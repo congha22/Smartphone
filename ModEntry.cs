@@ -648,9 +648,8 @@ namespace Smartphone
             Game1.activeClickableMenu = phoneMenu;
         }
 
-        public static async void LaunchNpcPhoneDialogue(NPC npc)
+        public static void LaunchNpcPhoneDialogue(NPC npc)
         {
-
             npc.checkForNewCurrentDialogue(Game1.player.getFriendshipHeartLevelForNPC(npc.Name));
 
             if (npc.currentMarriageDialogue != null && npc.currentMarriageDialogue.Count > 0)
@@ -676,13 +675,27 @@ namespace Smartphone
 
             if (dialogueStack != null && dialogueStack.Count > 0)
             {
-                while (dialogueStack.Count > 0)
+                Game1.drawDialogue(npc);
+
+                if (dialogueStack.Count > 0)
                 {
-                    if (Game1.activeClickableMenu == null)
+                    void OnUpdateTicked(object? sender, StardewModdingAPI.Events.UpdateTickedEventArgs e)
                     {
-                        Game1.drawDialogue(npc);
+                        if (Game1.activeClickableMenu == null)
+                        {
+                            if (npc.CurrentDialogue != null && npc.CurrentDialogue.Count > 0)
+                            {
+                                Game1.drawDialogue(npc);
+                            }
+
+                            if (npc.CurrentDialogue == null || npc.CurrentDialogue.Count == 0)
+                            {
+                                SHelper.Events.GameLoop.UpdateTicked -= OnUpdateTicked;
+                            }
+                        }
                     }
-                    await System.Threading.Tasks.Task.Delay(100);
+
+                    SHelper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
                 }
             }
             else

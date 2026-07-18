@@ -229,6 +229,35 @@ namespace Smartphone
             cb?.Invoke(jsonString);
         }
 
+        private static List<string> GetAllPhotoFilePaths()
+        {
+            string playerFolder = GetCaptureFolderPath("photo_player");
+            string importedFolder = GetCaptureFolderPath("photo_imported");
+
+            try { Directory.CreateDirectory(playerFolder); } catch { }
+            try { Directory.CreateDirectory(importedFolder); } catch { }
+
+            var files = new List<string>();
+
+            if (Directory.Exists(playerFolder))
+            {
+                files.AddRange(Directory.GetFiles(playerFolder)
+                    .Where(p => p.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+                             || p.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)));
+            }
+
+            if (Directory.Exists(importedFolder))
+            {
+                files.AddRange(Directory.GetFiles(importedFolder)
+                    .Where(p => p.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+                             || p.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)));
+            }
+
+            return files
+                .OrderBy(f => File.GetCreationTime(f))
+                .ToList();
+        }
+
         internal void OpenPhotoApp()
         {
             if (!photoSelectionApiMode)
@@ -243,16 +272,8 @@ namespace Smartphone
             ApplyPhoneBackground(ModEntry.currentPhoneBackground);
             LoadPhotoAlbumStore();
 
-            string userCaptureFolderPath = GetCaptureFolderPath("photo_player");
-
             // Sort oldest first so index 0 is oldest, last is newest
-            capturedImages = Directory.Exists(userCaptureFolderPath)
-                ? Directory.GetFiles(userCaptureFolderPath)
-                    .Where(p => p.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
-                             || p.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(f => File.GetCreationTime(f))
-                    .ToList()
-                : new List<string>();
+            capturedImages = GetAllPhotoFilePaths();
 
             // Reset state
             photoSelectMode = photoSelectionApiMode;
@@ -347,6 +368,8 @@ namespace Smartphone
                 title = ModEntry.SHelper.Translation.Get("ui.photo.title");
             else if (photoFilterType == "favourites")
                 title = ModEntry.SHelper.Translation.Get("ui.photo.favourites");
+            else if (photoFilterType == "imported")
+                title = ModEntry.SHelper.Translation.Get("ui.photo.imported");
             else
                 title = photoCurrentFilter ?? ModEntry.SHelper.Translation.Get("ui.photo.album");
 
@@ -550,10 +573,11 @@ namespace Smartphone
 
             y += titleH;
 
-            // Built-in: Favourites
+            // Built-in: Favourites, Imported
             var builtinAlbums = new List<(string Name, string Type)>
             {
                 ("Favourites", "favourites"),
+                ("Imported", "imported"),
             };
 
             // Custom albums
@@ -700,6 +724,8 @@ namespace Smartphone
                     string displayName = name;
                     if (type == "favourites")
                         displayName = ModEntry.SHelper.Translation.Get("ui.photo.favourites");
+                    else if (type == "imported")
+                        displayName = ModEntry.SHelper.Translation.Get("ui.photo.imported");
                     string label = ModEntry.SHelper.Translation.Get("ui.photo.album_count_format", new { name = displayName, count = photoCount });
 
                     float nameScale = GetPhoneTextScale(0.75f) * phoneUiScale;
@@ -745,7 +771,12 @@ namespace Smartphone
             var items = new List<string>();
             if (photoDetailIndex >= 0)
             {
-                items.AddRange(new[] { "Delete", "Add to Album", "Set wallpaper" });
+                items.Add("Delete");
+                if (photoFilterType == "album")
+                {
+                    items.Add("Drop from album");
+                }
+                items.AddRange(new[] { "Add to Album", "Set wallpaper" });
                 var socialApi = ModEntry.SHelper.ModRegistry.GetApi<IStardewSocialApi>("d5a1lamdtd.Smartphone-AppStardewSocial");
                 if (socialApi != null)
                 {
@@ -754,7 +785,12 @@ namespace Smartphone
             }
             else
             {
-                items.AddRange(new[] { "Delete", "Select all", "Favourite", "Add to Album" });
+                items.Add("Delete");
+                if (photoFilterType == "album")
+                {
+                    items.Add("Drop from album");
+                }
+                items.AddRange(new[] { "Select all", "Favourite", "Add to Album" });
             }
 
             photoDropdownItems.Clear();
@@ -794,6 +830,7 @@ namespace Smartphone
                 {
                     "Delete" => ModEntry.SHelper.Translation.Get("ui.photo.delete"),
                     "Add to Album" => ModEntry.SHelper.Translation.Get("ui.photo.add_to_album"),
+                    "Drop from album" => ModEntry.SHelper.Translation.Get("ui.photo.remove_from_album"),
                     "Set wallpaper" => ModEntry.SHelper.Translation.Get("ui.photo.set_wallpaper"),
                     "Share" => ModEntry.SHelper.Translation.Get("ui.photo.share"),
                     "Select all" => ModEntry.SHelper.Translation.Get("ui.photo.select_all"),
@@ -1622,7 +1659,7 @@ namespace Smartphone
             int tileW = (GetPhoneContentBounds().Width - tileGap * (PhotoAlbumTileCols + 1)) / PhotoAlbumTileCols;
             int tileH = tileW + ScaleUiValue(PhotoAlbumTileTextHeight);
 
-            int allAlbumCount = 1 + photoAlbumStore.Albums.Count;  // Favourites + user
+            int allAlbumCount = 2 + photoAlbumStore.Albums.Count;  // Favourites + Imported + user
             int albumRows = (int)Math.Ceiling(allAlbumCount / (double)PhotoAlbumTileCols);
             int total = sectionPad + titleH + albumRows * (tileH + tileGap) + sectionPad;
 
@@ -1751,6 +1788,27 @@ namespace Smartphone
                     .Where(t => IsPhotoFavourite(t.path))
                     .Select(t => t.idx)
                     .ToList();
+
+            if (photoFilterType == "imported")
+            {
+                string importedFolderPath = Path.GetFullPath(GetCaptureFolderPath("photo_imported"));
+                return capturedImages
+                    .Select((path, idx) => (path, idx))
+                    .Where(t =>
+                    {
+                        try
+                        {
+                            string dir = Path.GetFullPath(Path.GetDirectoryName(t.path) ?? "");
+                            return string.Equals(dir, importedFolderPath, StringComparison.OrdinalIgnoreCase);
+                        }
+                        catch
+                        {
+                            return false;
+                        }
+                    })
+                    .Select(t => t.idx)
+                    .ToList();
+            }
 
             if (photoFilterType == "album" && photoCurrentFilter != null)
             {
@@ -1897,6 +1955,41 @@ namespace Smartphone
                     }
                     break;
 
+                case "Drop from album":
+                    if (photoFilterType == "album" && !string.IsNullOrEmpty(photoCurrentFilter))
+                    {
+                        var targetAlbum = photoAlbumStore.Albums
+                            .FirstOrDefault(a => string.Equals(a.Name, photoCurrentFilter, StringComparison.OrdinalIgnoreCase));
+                        if (targetAlbum != null)
+                        {
+                            if (photoDetailIndex >= 0 && photoDetailIndex < capturedImages.Count)
+                            {
+                                string fname = Path.GetFileName(capturedImages[photoDetailIndex]);
+                                targetAlbum.PhotoFileNames.RemoveAll(f => string.Equals(f, fname, StringComparison.OrdinalIgnoreCase));
+                                photoDetailIndex = -1;
+                                DisposePhotoDetailTexture();
+                            }
+                            else if (photoSelectedIndices.Count > 0)
+                            {
+                                foreach (int idx in photoSelectedIndices)
+                                {
+                                    if (idx >= 0 && idx < capturedImages.Count)
+                                    {
+                                        string fname = Path.GetFileName(capturedImages[idx]);
+                                        targetAlbum.PhotoFileNames.RemoveAll(f => string.Equals(f, fname, StringComparison.OrdinalIgnoreCase));
+                                    }
+                                }
+                                photoSelectedIndices.Clear();
+                                photoSelectMode = false;
+                            }
+                            SavePhotoAlbumStore();
+                            photoScrollTarget = Math.Min(photoScrollTarget, GetPhotoMaxScroll());
+                            photoScrollOffset = Math.Min(photoScrollOffset, GetPhotoMaxScroll());
+                            Game1.playSound("coin");
+                        }
+                    }
+                    break;
+
                 case "Select all":
                     {
                         var filtered = GetFilteredPhotoIndices();
@@ -2004,7 +2097,7 @@ namespace Smartphone
                 capturedImages.RemoveAt(idx);
                 ModEntry.RemoveImageTags(fname);
 
-                // Remove from album store
+                // Drop from album store
                 foreach (var album in photoAlbumStore.Albums)
                     album.PhotoFileNames.Remove(fname);
                 photoAlbumStore.FavouriteFileNames.Remove(fname);

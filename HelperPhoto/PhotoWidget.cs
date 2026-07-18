@@ -288,19 +288,7 @@ namespace Smartphone
         {
             try
             {
-                string userCaptureFolderPath = GetCaptureFolderPath("photo_player");
-                if (Directory.Exists(userCaptureFolderPath))
-                {
-                    capturedImages = Directory.GetFiles(userCaptureFolderPath)
-                        .Where(p => p.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
-                                 || p.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase))
-                        .OrderBy(f => File.GetCreationTime(f))
-                        .ToList();
-                }
-                else
-                {
-                    capturedImages = new List<string>();
-                }
+                capturedImages = GetAllPhotoFilePaths();
             }
             catch
             {

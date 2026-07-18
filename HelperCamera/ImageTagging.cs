@@ -80,6 +80,7 @@ namespace Smartphone
 
             // Scan active image folders used by this mod.
             yield return Path.Combine(saveRoot, "photo_player");
+            yield return Path.Combine(saveRoot, "photo_imported");
         }
 
         public static void LoadImageTags()
