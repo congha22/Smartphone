@@ -35,6 +35,7 @@ namespace Smartphone
     internal static class AppStoreManager
     {
         private const string SheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSrSa8WPN27y_HycjbTTB9wiXsZgC-Wu8pMXd3yeFWItBorqio8-e46e4IDf8Vnq2frlQYJb1hYvGk5/pub?gid=0&single=true&output=csv";
+        private const string FallbackUrl = "https://congha22.github.io/Smartphone-AppStoreData/data.csv";
         private static readonly HttpClient HttpClient = new HttpClient();
         private static readonly SemaphoreSlim TextureCreationSemaphore = new SemaphoreSlim(1, 1);
 
@@ -67,7 +68,18 @@ namespace Smartphone
                 }
                 catch (Exception ex)
                 {
-                    ModEntry.SMonitor?.Log($"AppStoreManager: Failed to fetch mod list: {ex}", LogLevel.Error);
+                    ModEntry.SMonitor?.Log($"AppStoreManager: Failed to fetch mod list from Google Sheets: {ex.Message}. Trying fallback URL...", LogLevel.Warn);
+                    try
+                    {
+                        string fallbackFetchUrl = $"{FallbackUrl}?t={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+                        string csvData = await HttpClient.GetStringAsync(fallbackFetchUrl);
+                        ParseCsv(csvData);
+                        ModEntry.SMonitor?.Log($"AppStoreManager: Fetched {Mods.Count} mods from fallback URL.", LogLevel.Debug);
+                    }
+                    catch (Exception fallbackEx)
+                    {
+                        ModEntry.SMonitor?.Log($"AppStoreManager: Failed to fetch mod list from fallback URL: {fallbackEx}", LogLevel.Error);
+                    }
                 }
             });
         }
