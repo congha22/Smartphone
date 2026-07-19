@@ -29,5 +29,11 @@ namespace Smartphone
 
         public bool RestoreStamina { get; set; } = true;
         public float StaminaRestoreRate { get; set; } = 0.5f;
+
+        public bool BackgroundFitFullscreen { get; set; } = false;
+        public int BackgroundDistortion { get; set; } = 4;
+        public float BackgroundBlackening { get; set; } = 0.10f;
+
+        public string PhotoPreviewQuality { get; set; } = "Medium";
     }
 }

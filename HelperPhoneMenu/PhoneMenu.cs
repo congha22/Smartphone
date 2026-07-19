@@ -1156,7 +1156,11 @@ namespace Smartphone
 
             Color[] targetData = new Color[targetWidth * targetHeight];
 
-            float scale = Math.Min(targetWidth / (float)sourceWidth, targetHeight / (float)sourceHeight);
+            bool fitFullscreen = ModEntry.Config?.BackgroundFitFullscreen ?? false;
+            float scale = fitFullscreen
+                ? Math.Max(targetWidth / (float)sourceWidth, targetHeight / (float)sourceHeight)
+                : Math.Min(targetWidth / (float)sourceWidth, targetHeight / (float)sourceHeight);
+
             int drawWidth = Math.Max(1, (int)Math.Round(sourceWidth * scale));
             int drawHeight = Math.Max(1, (int)Math.Round(sourceHeight * scale));
             int drawOffsetX = (targetWidth - drawWidth) / 2;
@@ -1166,11 +1170,14 @@ namespace Smartphone
             {
                 int srcY = sourceY + Math.Min(sourceHeight - 1, (int)(drawY * (sourceHeight / (float)drawHeight)));
                 int dstY = drawOffsetY + drawY;
+                if (dstY < 0 || dstY >= targetHeight) continue;
 
                 for (int drawX = 0; drawX < drawWidth; drawX++)
                 {
                     int srcX = sourceX + Math.Min(sourceWidth - 1, (int)(drawX * (sourceWidth / (float)drawWidth)));
                     int dstX = drawOffsetX + drawX;
+                    if (dstX < 0 || dstX >= targetWidth) continue;
+
                     targetData[dstY * targetWidth + dstX] = sourceData[srcY * source.Width + srcX];
                 }
             }
@@ -1725,8 +1732,32 @@ namespace Smartphone
         {
             if (source == null) return null;
 
-            // 1. Downsample for speed and extra "softness"
-            int scaleDown = 4;
+            int distortion = ModEntry.Config != null ? Math.Clamp(ModEntry.Config.BackgroundDistortion, 0, 10) : 4;
+            float blackening = ModEntry.Config != null ? Math.Clamp(ModEntry.Config.BackgroundBlackening, 0.0f, 0.9f) : 0.10f;
+            float darkenFactor = Math.Clamp(1.0f - blackening, 0.1f, 1.0f);
+
+            if (distortion <= 0)
+            {
+                Color[] rawData = new Color[source.Width * source.Height];
+                source.GetData(rawData);
+                Color[] clearData = new Color[rawData.Length];
+                for (int i = 0; i < rawData.Length; i++)
+                {
+                    Color c = rawData[i];
+                    clearData[i] = new Color(
+                        (int)(c.R * darkenFactor),
+                        (int)(c.G * darkenFactor),
+                        (int)(c.B * darkenFactor),
+                        c.A
+                    );
+                }
+                Texture2D unblurred = new Texture2D(Game1.graphics.GraphicsDevice, source.Width, source.Height);
+                unblurred.SetData(clearData);
+                return unblurred;
+            }
+
+            // 1. Downsample for speed and extra "softness" / distortion
+            int scaleDown = distortion;
             int width = Math.Max(1, source.Width / scaleDown);
             int height = Math.Max(1, source.Height / scaleDown);
 
@@ -1781,8 +1812,12 @@ namespace Smartphone
                         r += c.R; g += c.G; b += c.B;
                         count++;
                     }
-                    // Multiply by 0.5f to darken the image (iPhone style)
-                    destData[y * width + x] = new Color((int)((r / count) * 0.9f), (int)((g / count) * 0.9f), (int)((b / count) * 0.9f), 255);
+                    destData[y * width + x] = new Color(
+                        (int)((r / count) * darkenFactor),
+                        (int)((g / count) * darkenFactor),
+                        (int)((b / count) * darkenFactor),
+                        255
+                    );
                 }
             }
 

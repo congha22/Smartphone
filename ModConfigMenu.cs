@@ -100,6 +100,16 @@ namespace Smartphone
                 max: 500
             );
 
+            configMenu.AddTextOption(
+                mod: ModManifest,
+                name: () => Helper.Translation.Get("config.name.photo_preview_quality"),
+                tooltip: () => Helper.Translation.Get("config.tooltip.photo_preview_quality"),
+                getValue: () => Config.PhotoPreviewQuality,
+                setValue: value => Config.PhotoPreviewQuality = value,
+                allowedValues: new string[] { "Low", "Medium", "High" },
+                formatAllowedValue: value => Helper.Translation.Get($"config.value.{value.ToLower()}")
+            );
+
             // display page
             configMenu.AddPage(mod: ModManifest, pageId: "display", pageTitle: () => Helper.Translation.Get("config.page.display"));
 
@@ -253,6 +263,38 @@ namespace Smartphone
                 max: 3f,
                 interval: 0.1f,
                 formatValue: value => $"{value:0.0}"
+            );
+
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: () => Helper.Translation.Get("config.name.background_fit_fullscreen"),
+                tooltip: () => Helper.Translation.Get("config.tooltip.background_fit_fullscreen"),
+                getValue: () => Config.BackgroundFitFullscreen,
+                setValue: value => Config.BackgroundFitFullscreen = value
+            );
+
+            configMenu.AddNumberOption(
+                mod: ModManifest,
+                name: () => Helper.Translation.Get("config.name.background_distortion"),
+                tooltip: () => Helper.Translation.Get("config.tooltip.background_distortion"),
+                getValue: () => Config.BackgroundDistortion,
+                setValue: value => Config.BackgroundDistortion = Math.Clamp(value, 0, 10),
+                min: 0,
+                max: 10,
+                interval: 1,
+                formatValue: value => value == 0 ? Helper.Translation.Get("config.value.off") : $"{value}"
+            );
+
+            configMenu.AddNumberOption(
+                mod: ModManifest,
+                name: () => Helper.Translation.Get("config.name.background_blackening"),
+                tooltip: () => Helper.Translation.Get("config.tooltip.background_blackening"),
+                getValue: () => Config.BackgroundBlackening,
+                setValue: value => Config.BackgroundBlackening = (float)Math.Round(Math.Clamp(value, 0f, 0.9f), 2),
+                min: 0.0f,
+                max: 0.9f,
+                interval: 0.05f,
+                formatValue: value => $"{value * 100:0}%"
             );
         }
 

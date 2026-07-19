@@ -2249,9 +2249,15 @@ namespace Smartphone
                 string path = capturedImages[index];
                 using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 Texture2D source = Texture2D.FromStream(Game1.graphics.GraphicsDevice, stream);
-                // Scale to thumbnail size (cap at cellW x cellH)
-                int maxW = Math.Max(1, PhotoCellWidth);
-                int maxH = Math.Max(1, PhotoCellHeight);
+                // Scale to thumbnail size based on PhotoPreviewQuality config (Low=1x, Medium=2x, High=3x)
+                int qualityMultiplier = ModEntry.Config?.PhotoPreviewQuality switch
+                {
+                    "Medium" => 2,
+                    "High" => 3,
+                    _ => 1
+                };
+                int maxW = Math.Max(1, PhotoCellWidth * qualityMultiplier);
+                int maxH = Math.Max(1, PhotoCellHeight * qualityMultiplier);
                 Texture2D thumb = CreateScaledThumbnail(source, maxW, maxH);
                 source.Dispose();
                 photoThumbnailCache[index] = thumb;
