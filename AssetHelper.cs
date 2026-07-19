@@ -10,6 +10,7 @@ namespace Smartphone
     {
         public Dictionary<string, string> ComponentThemes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         public string CurrentPhoneBackground { get; set; } = "";
+        public string CurrentPhoneLandscapeBackground { get; set; } = "";
         public string CurrentPhoneSound { get; set; } = "";
         public string CurrentPhoneTextColor { get; set; } = "";
         public string LockScreenPin1 { get; set; } = "builtin:phone";
@@ -195,6 +196,8 @@ public class AssetHelper
                     }
                     if (!string.IsNullOrEmpty(data.CurrentPhoneBackground))
                         Smartphone.ModEntry.currentPhoneBackground = data.CurrentPhoneBackground;
+                    if (!string.IsNullOrEmpty(data.CurrentPhoneLandscapeBackground))
+                        Smartphone.ModEntry.currentPhoneLandscapeBackground = data.CurrentPhoneLandscapeBackground;
                     if (!string.IsNullOrEmpty(data.CurrentPhoneSound))
                         Smartphone.ModEntry.currentPhoneSound = data.CurrentPhoneSound;
                     else
@@ -237,6 +240,7 @@ public class AssetHelper
             {
                 ComponentThemes = componentThemes,
                 CurrentPhoneBackground = Smartphone.ModEntry.currentPhoneBackground ?? "",
+                CurrentPhoneLandscapeBackground = Smartphone.ModEntry.currentPhoneLandscapeBackground ?? "",
                 CurrentPhoneSound = string.IsNullOrEmpty(Smartphone.ModEntry.currentPhoneSound) ? "getNewSpecialItem" : Smartphone.ModEntry.currentPhoneSound,
                 CurrentPhoneTextColor = Smartphone.ModEntry.currentPhoneTextColor ?? "Black",
                 LockScreenPin1 = Smartphone.ModEntry.lockScreenPin1 ?? "builtin:phone",

@@ -120,6 +120,9 @@ namespace Smartphone
                 Vector2 timeSize = Game1.dialogueFont.MeasureString(timeText) * timeScale;
                 Vector2 dateSize = Game1.smallFont.MeasureString(dateText) * dateScale;
 
+                bool isHudIconPreview = Game1.activeClickableMenu != this;
+                bool disableHudNotifications = isHudIconPreview && (ModEntry.Config?.DisableNotificationOnPhoneIcon ?? false);
+
                 // Use static Y calculations without offset first
                 float staticTopY = contentBounds.Top + ScaleUiValue(82f);
 
@@ -172,137 +175,145 @@ namespace Smartphone
                     centerX,
                     staticDatePosition.Y + dateSize.Y + ScaleUiValue(LockScreenWeatherPanelTopSpacing) - totalTopYOffset);
 
-                // Draw active unread notifications
-                List<string> msgs = NotificationManager.GetNotificationList();
-                int unreadCount = NotificationManager.GetUnreadNotification();
-                int startIndex = Math.Max(0, msgs.Count - unreadCount);
-
-                int headerY = GetNotificationCenterStartY(staticDatePosition, dateSize);
-                int headerHeight = GetPhoneScaledLineHeight(Game1.smallFont, 1.15f);
-                int staticMessageY = headerY;
-
-                if (unreadCount > 0)
+                if (!disableHudNotifications)
                 {
-                    string headerText = ModEntry.SHelper.Translation.Get("ui.lockscreen.notification_center");
-                    Vector2 headerTextSize = Game1.smallFont.MeasureString(headerText) * GetPhoneTextScale(1.15f);
-                    Vector2 headerTextPos = new Vector2(contentBounds.X + ScaleUiValue(12), headerY - totalTopYOffset + (headerHeight - headerTextSize.Y) / 2f);
+                    // Draw active unread notifications
+                    List<string> msgs = NotificationManager.GetNotificationList();
+                    int unreadCount = NotificationManager.GetUnreadNotification();
+                    int startIndex = Math.Max(0, msgs.Count - unreadCount);
 
-                    DrawShadowedText(
-                        b,
-                        Game1.smallFont,
-                        headerText,
-                        headerTextPos,
-                        Color.White * 0.7f,
-                        new Color(0, 0, 0, 150),
-                        GetPhoneTextScale(1.15f)
-                    );
+                    int headerY = GetNotificationCenterStartY(staticDatePosition, dateSize);
+                    int headerHeight = GetPhoneScaledLineHeight(Game1.smallFont, 1.15f);
+                    int staticMessageY = headerY;
 
-                    string xText = ModEntry.SHelper.Translation.Get("ui.lockscreen.clear");
-                    Vector2 xTextSize = Game1.smallFont.MeasureString(xText) * GetPhoneTextScale(0.85f) * phoneUiScale;
-                    int xButtonWidth = (int)Math.Round(xTextSize.X + ScaleUiValue(16));
-                    int xButtonHeight = (int)Math.Round(xTextSize.Y + ScaleUiValue(8));
-                    int xButtonX = contentBounds.Right - ScaleUiValue(12) - xButtonWidth;
-                    int xButtonY = headerY - (int)Math.Round(totalTopYOffset) + (headerHeight - xButtonHeight) / 2;
+                    if (unreadCount > 0)
+                    {
+                        string headerText = ModEntry.SHelper.Translation.Get("ui.lockscreen.notification_center");
+                        Vector2 headerTextSize = Game1.smallFont.MeasureString(headerText) * GetPhoneTextScale(1.15f);
+                        Vector2 headerTextPos = new Vector2(contentBounds.X + ScaleUiValue(12), headerY - totalTopYOffset + (headerHeight - headerTextSize.Y) / 2f);
 
-                    int drawnXButtonY = headerY - (int)Math.Round(scrollYOffset + verticalUnlockOffset) + (headerHeight - xButtonHeight) / 2;
-                    lockScreenClearNotificationsBounds = new Rectangle(xButtonX, drawnXButtonY, xButtonWidth, xButtonHeight);
+                        DrawShadowedText(
+                            b,
+                            Game1.smallFont,
+                            headerText,
+                            headerTextPos,
+                            Color.White * 0.7f,
+                            new Color(0, 0, 0, 150),
+                            GetPhoneTextScale(1.15f)
+                        );
 
-                    mouseX = Game1.getMouseX();
-                    mouseY = Game1.getMouseY();
-                    bool isHovered = new Rectangle(xButtonX, xButtonY, xButtonWidth, xButtonHeight).Contains(mouseX, mouseY);
+                        string xText = ModEntry.SHelper.Translation.Get("ui.lockscreen.clear");
+                        Vector2 xTextSize = Game1.smallFont.MeasureString(xText) * GetPhoneTextScale(0.85f) * phoneUiScale;
+                        int xButtonWidth = (int)Math.Round(xTextSize.X + ScaleUiValue(16));
+                        int xButtonHeight = (int)Math.Round(xTextSize.Y + ScaleUiValue(8));
+                        int xButtonX = contentBounds.Right - ScaleUiValue(12) - xButtonWidth;
+                        int xButtonY = headerY - (int)Math.Round(totalTopYOffset) + (headerHeight - xButtonHeight) / 2;
 
-                    Color xBgColor = isHovered ? new Color(100, 100, 100, 180) : new Color(60, 60, 60, 150);
-                    Color xTextColor = isHovered ? Color.White : Color.White * 0.7f;
+                        int drawnXButtonY = headerY - (int)Math.Round(scrollYOffset + verticalUnlockOffset) + (headerHeight - xButtonHeight) / 2;
+                        lockScreenClearNotificationsBounds = new Rectangle(xButtonX, drawnXButtonY, xButtonWidth, xButtonHeight);
 
-                    Textures.DrawCard(
-                        b,
-                        xButtonX,
-                        xButtonY,
-                        xButtonWidth,
-                        xButtonHeight,
-                        xBgColor,
-                        1f,
-                        false
-                    );
+                        mouseX = Game1.getMouseX();
+                        mouseY = Game1.getMouseY();
+                        bool isHovered = new Rectangle(xButtonX, xButtonY, xButtonWidth, xButtonHeight).Contains(mouseX, mouseY);
 
-                    Vector2 xPos = new Vector2(xButtonX + (xButtonWidth - xTextSize.X) / 2f, xButtonY + (xButtonHeight - xTextSize.Y) / 2f);
-                    b.DrawString(Game1.smallFont, xText, xPos, xTextColor, 0f, Vector2.Zero, GetPhoneTextScale(0.85f) * phoneUiScale, SpriteEffects.None, 1f);
+                        Color xBgColor = isHovered ? new Color(100, 100, 100, 180) : new Color(60, 60, 60, 150);
+                        Color xTextColor = isHovered ? Color.White : Color.White * 0.7f;
 
-                    staticMessageY += headerHeight + ScaleUiValue(10);
+                        Textures.DrawCard(
+                            b,
+                            xButtonX,
+                            xButtonY,
+                            xButtonWidth,
+                            xButtonHeight,
+                            xBgColor,
+                            1f,
+                            false
+                        );
+
+                        Vector2 xPos = new Vector2(xButtonX + (xButtonWidth - xTextSize.X) / 2f, xButtonY + (xButtonHeight - xTextSize.Y) / 2f);
+                        b.DrawString(Game1.smallFont, xText, xPos, xTextColor, 0f, Vector2.Zero, GetPhoneTextScale(0.85f) * phoneUiScale, SpriteEffects.None, 1f);
+
+                        staticMessageY += headerHeight + ScaleUiValue(10);
+                    }
+                    else
+                    {
+                        lockScreenClearNotificationsBounds = Rectangle.Empty;
+                    }
+
+                    int cardSpacing = ScaleUiValue(12);
+
+                    SpriteFont font = Game1.smallFont;
+                    int titleLineHeight = GetPhoneScaledLineHeight(font, 0.85f);
+                    int messageLineHeight = GetPhoneScaledLineHeight(font, 0.75f);
+                    int wrapWidthBase = GetNotificationWrapWidthBase();
+                    int cardWidth = contentBounds.Width - 2 * ScaleUiValue(10);
+                    int cardX = contentBounds.X + ScaleUiValue(10);
+
+                    lockScreenCardBounds.Clear();
+
+                    for (int i = msgs.Count - 1; i >= startIndex; i--)
+                    {
+                        string rawMsg = msgs[i];
+                        string msg = rawMsg;
+                        string title = "";
+
+                        if (rawMsg.Contains("::"))
+                        {
+                            var parts = rawMsg.Split(new[] { "::" }, 2, StringSplitOptions.None);
+                            title = parts[0];
+                            msg = parts[1];
+                        }
+
+                        int wrapWidth = (int)Math.Round(GetPhoneScaledWrapWidth(wrapWidthBase) / 0.8f);
+                        var messageLines = SplitNotificationIntoLines(msg, font, wrapWidth);
+                        if (messageLines.Count > 2)
+                        {
+                            messageLines = new List<string> { messageLines[0], messageLines[1] + "..." };
+                        }
+
+                        int cardHeight = GetLockScreenCardHeight(!string.IsNullOrEmpty(title), messageLines.Count, titleLineHeight, messageLineHeight);
+
+                        int drawCardY = (int)Math.Round(staticMessageY - totalTopYOffset);
+                        Rectangle cardBounds = new Rectangle(cardX, drawCardY, cardWidth, cardHeight);
+
+                        if (!lockScreenUnlockAnimating)
+                        {
+                            lockScreenCardBounds.Add((cardBounds, i));
+                        }
+
+                        Textures.DrawCard(
+                            b,
+                            cardBounds.X,
+                            cardBounds.Y,
+                            cardBounds.Width,
+                            cardBounds.Height,
+                            Color.Silver,
+                            1f,
+                            false
+                        );
+
+                        int textY = cardBounds.Y + ScaleUiValue(12);
+                        if (!string.IsNullOrEmpty(title))
+                        {
+                            Vector2 titlePos = new Vector2(cardBounds.X + ScaleUiValue(15), textY);
+                            DrawPhoneText(b, font, title, titlePos, new Color(10, 25, 10), 0.85f);
+                            textY += titleLineHeight + ScaleUiValue(4);
+                        }
+
+                        foreach (var line in messageLines)
+                        {
+                            Vector2 linePos = new Vector2(cardBounds.X + ScaleUiValue(15), textY);
+                            DrawPhoneText(b, font, line, linePos, new Color(30, 45, 30), 0.8f);
+                            textY += messageLineHeight;
+                        }
+
+                        staticMessageY += cardHeight + cardSpacing;
+                    }
                 }
                 else
                 {
                     lockScreenClearNotificationsBounds = Rectangle.Empty;
-                }
-
-                int cardSpacing = ScaleUiValue(12);
-
-                SpriteFont font = Game1.smallFont;
-                int titleLineHeight = GetPhoneScaledLineHeight(font, 0.85f);
-                int messageLineHeight = GetPhoneScaledLineHeight(font, 0.75f);
-                int wrapWidthBase = GetNotificationWrapWidthBase();
-                int cardWidth = contentBounds.Width - 2 * ScaleUiValue(10);
-                int cardX = contentBounds.X + ScaleUiValue(10);
-
-                lockScreenCardBounds.Clear();
-
-                for (int i = msgs.Count - 1; i >= startIndex; i--)
-                {
-                    string rawMsg = msgs[i];
-                    string msg = rawMsg;
-                    string title = "";
-
-                    if (rawMsg.Contains("::"))
-                    {
-                        var parts = rawMsg.Split(new[] { "::" }, 2, StringSplitOptions.None);
-                        title = parts[0];
-                        msg = parts[1];
-                    }
-
-                    int wrapWidth = (int)Math.Round(GetPhoneScaledWrapWidth(wrapWidthBase) / 0.8f);
-                    var messageLines = SplitNotificationIntoLines(msg, font, wrapWidth);
-                    if (messageLines.Count > 2)
-                    {
-                        messageLines = new List<string> { messageLines[0], messageLines[1] + "..." };
-                    }
-
-                    int cardHeight = GetLockScreenCardHeight(!string.IsNullOrEmpty(title), messageLines.Count, titleLineHeight, messageLineHeight);
-
-                    int drawCardY = (int)Math.Round(staticMessageY - totalTopYOffset);
-                    Rectangle cardBounds = new Rectangle(cardX, drawCardY, cardWidth, cardHeight);
-
-                    if (!lockScreenUnlockAnimating)
-                    {
-                        lockScreenCardBounds.Add((cardBounds, i));
-                    }
-
-                    Textures.DrawCard(
-                        b,
-                        cardBounds.X,
-                        cardBounds.Y,
-                        cardBounds.Width,
-                        cardBounds.Height,
-                        Color.Silver,
-                        1f,
-                        false
-                    );
-
-                    int textY = cardBounds.Y + ScaleUiValue(12);
-                    if (!string.IsNullOrEmpty(title))
-                    {
-                        Vector2 titlePos = new Vector2(cardBounds.X + ScaleUiValue(15), textY);
-                        DrawPhoneText(b, font, title, titlePos, new Color(10, 25, 10), 0.85f);
-                        textY += titleLineHeight + ScaleUiValue(4);
-                    }
-
-                    foreach (var line in messageLines)
-                    {
-                        Vector2 linePos = new Vector2(cardBounds.X + ScaleUiValue(15), textY);
-                        DrawPhoneText(b, font, line, linePos, new Color(30, 45, 30), 0.8f);
-                        textY += messageLineHeight;
-                    }
-
-                    staticMessageY += cardHeight + cardSpacing;
+                    lockScreenCardBounds.Clear();
                 }
 
                 // Restore previous scissor clipping rectangle and end scissor test drawing
@@ -890,15 +901,21 @@ namespace Smartphone
             return (int)Math.Round(datePosition.Y + dateSize.Y + ScaleUiValue(LockScreenWeatherPanelTopSpacing) + weatherLabelHeight + ScaleUiValue(4f) + iconHeight + ScaleUiValue(20f));
         }
 
-        private void DrawLockScreenBackground(SpriteBatch b, int yOffset)
+        private void DrawLockScreenBackground(SpriteBatch b, int yOffset, bool isLandscape = false)
         {
             Rectangle contentBounds = GetPhoneContentBounds();
             Rectangle shiftedBounds = new Rectangle(contentBounds.X, contentBounds.Y - yOffset, contentBounds.Width, contentBounds.Height);
 
-            b.Draw(texturePhoneBackground, shiftedBounds, Color.White);
-            if (phoneBackgroundImage != null)
+            bool fitFullscreen = ModEntry.Config?.BackgroundFitFullscreen ?? false;
+            bool landscape = isLandscape || contentBounds.Width > contentBounds.Height;
+
+            // Always draw solid base background texture covering 100% of the screen first so lockscreen is never see-through
+            DrawFittedTexture(b, texturePhoneBackground, shiftedBounds, Color.White, fitFullscreen: true);
+
+            Texture2D? bgTex = landscape ? (phoneBackgroundImageLandscape ?? phoneBackgroundImage) : phoneBackgroundImage;
+            if (bgTex != null)
             {
-                b.Draw(phoneBackgroundImage, shiftedBounds, Color.White * 0.8f);
+                DrawFittedTexture(b, bgTex, shiftedBounds, Color.White, fitFullscreen);
             }
         }
 

@@ -790,7 +790,7 @@ namespace Smartphone
                 {
                     items.Add("Drop from album");
                 }
-                items.AddRange(new[] { "Add to Album", "Set wallpaper" });
+                items.AddRange(new[] { "Add to Album", "Set portrait BG", "Set landscape BG" });
                 var socialApi = ModEntry.SHelper.ModRegistry.GetApi<IStardewSocialApi>("d5a1lamdtd.Smartphone-AppStardewSocial");
                 if (socialApi != null)
                 {
@@ -845,7 +845,8 @@ namespace Smartphone
                     "Delete" => ModEntry.SHelper.Translation.Get("ui.photo.delete"),
                     "Add to Album" => ModEntry.SHelper.Translation.Get("ui.photo.add_to_album"),
                     "Drop from album" => ModEntry.SHelper.Translation.Get("ui.photo.remove_from_album"),
-                    "Set wallpaper" => ModEntry.SHelper.Translation.Get("ui.photo.set_wallpaper"),
+                    "Set portrait BG" => ModEntry.SHelper.Translation.Get("ui.photo.set_portrait_bg"),
+                    "Set landscape BG" => ModEntry.SHelper.Translation.Get("ui.photo.set_landscape_bg"),
                     "Share" => ModEntry.SHelper.Translation.Get("ui.photo.share"),
                     "Select all" => ModEntry.SHelper.Translation.Get("ui.photo.select_all"),
                     "Favourite" => ModEntry.SHelper.Translation.Get("ui.photo.favourite"),
@@ -2042,11 +2043,20 @@ namespace Smartphone
                     photoAlbumPickerOpen = true;
                     break;
 
-                case "Set wallpaper":
+                case "Set portrait BG":
                     if (photoDetailIndex >= 0 && photoDetailIndex < capturedImages.Count)
                     {
                         string path = capturedImages[photoDetailIndex];
-                        ApplyPhoneBackground(path); // This correctly hooks into PhoneMenu.cs!
+                        ApplyPhoneBackground(path, isLandscape: false);
+                        Game1.playSound("coin");
+                    }
+                    break;
+
+                case "Set landscape BG":
+                    if (photoDetailIndex >= 0 && photoDetailIndex < capturedImages.Count)
+                    {
+                        string path = capturedImages[photoDetailIndex];
+                        ApplyPhoneBackground(path, isLandscape: true);
                         Game1.playSound("coin");
                     }
                     break;
@@ -2094,6 +2104,7 @@ namespace Smartphone
         private void ExecuteDeleteSelectedPhotos()
         {
             bool deletedBackground = false;
+            bool deletedLandscapeBackground = false;
             var indices = photoSelectedIndices.OrderByDescending(i => i).ToList();
 
             foreach (int idx in indices)
@@ -2104,6 +2115,8 @@ namespace Smartphone
 
                 if (IsSameFilePath(ModEntry.currentPhoneBackground, path))
                     deletedBackground = true;
+                if (IsSameFilePath(ModEntry.currentPhoneLandscapeBackground, path))
+                    deletedLandscapeBackground = true;
 
                 try { File.Delete(path); }
                 catch (Exception ex) { ModEntry.SMonitor.Log($"Failed to delete photo: {ex.Message}", LogLevel.Warn); }
@@ -2128,7 +2141,9 @@ namespace Smartphone
             RebuildThumbnailCacheKeys();
 
             if (deletedBackground)
-                ResetPhoneBackgroundToDefault();
+                ResetPhoneBackgroundToDefault(isLandscape: false);
+            if (deletedLandscapeBackground)
+                ResetPhoneBackgroundToDefault(isLandscape: true);
 
             SavePhotoAlbumStore();
             photoSelectedIndices.Clear();

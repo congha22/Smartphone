@@ -47,8 +47,6 @@ namespace Smartphone
                 setValue: value => Config.DisableUpdateWarning = value
             );
 
-
-
             configMenu.AddTextOption(
                 mod: ModManifest,
                 name: () => Helper.Translation.Get("config.name.friendship_requirement"),
@@ -57,6 +55,14 @@ namespace Smartphone
                 setValue: value => Config.FriendshipRequirement = value,
                 allowedValues: new string[] { "Meet", "Friend" },
                 formatAllowedValue: value => Helper.Translation.Get($"config.value.{value.ToLower()}")
+            );
+
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: () => Helper.Translation.Get("config.name.prefer_portrait_icon_hud"),
+                tooltip: () => Helper.Translation.Get("config.tooltip.prefer_portrait_icon_hud"),
+                getValue: () => Config.PreferPortraitIconHud,
+                setValue: value => Config.PreferPortraitIconHud = value
             );
 
             configMenu.AddPageLink(
@@ -100,6 +106,9 @@ namespace Smartphone
                 max: 500
             );
 
+            // display page
+            configMenu.AddPage(mod: ModManifest, pageId: "display", pageTitle: () => Helper.Translation.Get("config.page.display"));
+
             configMenu.AddTextOption(
                 mod: ModManifest,
                 name: () => Helper.Translation.Get("config.name.photo_preview_quality"),
@@ -109,9 +118,6 @@ namespace Smartphone
                 allowedValues: new string[] { "Low", "Medium", "High" },
                 formatAllowedValue: value => Helper.Translation.Get($"config.value.{value.ToLower()}")
             );
-
-            // display page
-            configMenu.AddPage(mod: ModManifest, pageId: "display", pageTitle: () => Helper.Translation.Get("config.page.display"));
 
             configMenu.AddParagraph(
                 mod: ModManifest,
@@ -216,6 +222,14 @@ namespace Smartphone
                 tooltip: () => Helper.Translation.Get("config.tooltip.notification_popups"),
                 getValue: () => Config.NotifyNotification,
                 setValue: value => Config.NotifyNotification = value
+            );
+
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: () => Helper.Translation.Get("config.name.disable_notification_on_phone_icon"),
+                tooltip: () => Helper.Translation.Get("config.tooltip.disable_notification_on_phone_icon"),
+                getValue: () => Config.DisableNotificationOnPhoneIcon,
+                setValue: value => Config.DisableNotificationOnPhoneIcon = value
             );
 
             // misc page

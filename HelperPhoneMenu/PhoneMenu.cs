@@ -111,6 +111,8 @@ namespace Smartphone
         private List<string> capturedImages;
         private Texture2D phoneBackgroundImage = null;
         private Texture2D phoneBackgroundImageBlurred = null;
+        private Texture2D phoneBackgroundImageLandscape = null;
+        private Texture2D phoneBackgroundImageLandscapeBlurred = null;
 
         private bool forcedFreeControllerCursor = false;
         internal float phoneUiScale;
@@ -217,19 +219,20 @@ namespace Smartphone
         private void DrawPhoneScreenBackground(SpriteBatch b, int xOffset, bool applyBackgroundImage = false, bool useBlurredBackground = false)
         {
             Rectangle contentBounds = GetPhoneContentBounds(xOffset);
-            b.Draw(texturePhoneBackground, contentBounds, Color.White);
+            bool fitFullscreen = ModEntry.Config?.BackgroundFitFullscreen ?? false;
+
+            // Always draw solid base background texture covering 100% of the screen first so background is never see-through
+            DrawFittedTexture(b, texturePhoneBackground, contentBounds, Color.White, fitFullscreen: true);
 
             if (applyBackgroundImage)
             {
-                // If blur is requested, draw our new frosted texture
                 if (useBlurredBackground && phoneBackgroundImageBlurred != null)
                 {
-                    b.Draw(phoneBackgroundImageBlurred, contentBounds, Color.White);
+                    DrawFittedTexture(b, phoneBackgroundImageBlurred, contentBounds, Color.White, fitFullscreen);
                 }
-                // Otherwise draw the sharp image for the lock screen
                 else if (phoneBackgroundImage != null)
                 {
-                    b.Draw(phoneBackgroundImage, contentBounds, Color.White * 0.8f);
+                    DrawFittedTexture(b, phoneBackgroundImage, contentBounds, Color.White, fitFullscreen);
                 }
             }
         }
@@ -257,6 +260,15 @@ namespace Smartphone
 
         public Rectangle GetPhoneContentBounds(int xOffset = 0)
         {
+            if (width > height)
+            {
+                return new Rectangle(
+                    xPositionOnScreen + ModEntry.GetScaledPhoneContentOffsetY(phoneUiScale) + xOffset,
+                    yPositionOnScreen + ModEntry.GetScaledPhoneContentOffsetX(phoneUiScale),
+                    Math.Max(1, ScaleUiValue(texturePhoneBackground.Height)),
+                    Math.Max(1, ScaleUiValue(texturePhoneBackground.Width)));
+            }
+
             return new Rectangle(
                 xPositionOnScreen + ModEntry.GetScaledPhoneContentOffsetX(phoneUiScale) + xOffset,
                 yPositionOnScreen + ModEntry.GetScaledPhoneContentOffsetY(phoneUiScale),
@@ -293,7 +305,8 @@ namespace Smartphone
             RefreshPhoneThemeList();
             ReloadThemeTextures();
 
-            ApplyPhoneBackground(ModEntry.currentPhoneBackground);
+            ApplyPhoneBackground(ModEntry.currentPhoneBackground, false);
+            ApplyPhoneBackground(ModEntry.currentPhoneLandscapeBackground, true);
             EnsureFreeControllerCursor();
 
             // Initialize the iOS-style grid layout manager
@@ -1089,21 +1102,32 @@ namespace Smartphone
             return string.Equals(left ?? "", right ?? "", StringComparison.OrdinalIgnoreCase);
         }
 
-        internal void ResetPhoneBackgroundToDefault()
+        internal void ResetPhoneBackgroundToDefault(bool isLandscape = false)
         {
-            ModEntry.currentPhoneBackground = "";
-            phoneBackgroundImage?.Dispose();
-            phoneBackgroundImage = null;
-            phoneBackgroundImageBlurred?.Dispose();
-            phoneBackgroundImageBlurred = null;
+            if (isLandscape)
+            {
+                ModEntry.currentPhoneLandscapeBackground = "";
+                phoneBackgroundImageLandscape?.Dispose();
+                phoneBackgroundImageLandscape = null;
+                phoneBackgroundImageLandscapeBlurred?.Dispose();
+                phoneBackgroundImageLandscapeBlurred = null;
+            }
+            else
+            {
+                ModEntry.currentPhoneBackground = "";
+                phoneBackgroundImage?.Dispose();
+                phoneBackgroundImage = null;
+                phoneBackgroundImageBlurred?.Dispose();
+                phoneBackgroundImageBlurred = null;
+            }
             AssetHelper.SaveSettings();
         }
 
-        private void ApplyPhoneBackground(string imagePath)
+        private void ApplyPhoneBackground(string imagePath, bool isLandscape = false)
         {
             if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath))
             {
-                ResetPhoneBackgroundToDefault();
+                ResetPhoneBackgroundToDefault(isLandscape);
                 return;
             }
 
@@ -1112,20 +1136,73 @@ namespace Smartphone
                 using (FileStream stream = new FileStream(imagePath, FileMode.Open))
                 using (Texture2D fullImage = Texture2D.FromStream(Game1.graphics.GraphicsDevice, stream))
                 {
-                    phoneBackgroundImage?.Dispose();
-                    phoneBackgroundImageBlurred?.Dispose();
+                    Color[] fullData = new Color[fullImage.Width * fullImage.Height];
+                    fullImage.GetData(fullData);
 
-                    phoneBackgroundImage = CropTexture(fullImage);
-                    phoneBackgroundImageBlurred = CreateBlurredTexture(phoneBackgroundImage);
+                    Texture2D loadedTex = new Texture2D(Game1.graphics.GraphicsDevice, fullImage.Width, fullImage.Height);
+                    loadedTex.SetData(fullData);
+                    Texture2D blurredTex = CreateBlurredTexture(loadedTex);
+
+                    if (isLandscape)
+                    {
+                        phoneBackgroundImageLandscape?.Dispose();
+                        phoneBackgroundImageLandscapeBlurred?.Dispose();
+                        phoneBackgroundImageLandscape = loadedTex;
+                        phoneBackgroundImageLandscapeBlurred = blurredTex;
+                        ModEntry.currentPhoneLandscapeBackground = imagePath;
+                    }
+                    else
+                    {
+                        phoneBackgroundImage?.Dispose();
+                        phoneBackgroundImageBlurred?.Dispose();
+                        phoneBackgroundImage = loadedTex;
+                        phoneBackgroundImageBlurred = blurredTex;
+                        ModEntry.currentPhoneBackground = imagePath;
+                    }
                 }
 
-                ModEntry.currentPhoneBackground = imagePath;
                 AssetHelper.SaveSettings(); // <--- Save triggered
             }
             catch (Exception ex)
             {
                 ModEntry.SMonitor.Log($"Failed to load phone background image '{imagePath}': {ex.Message}", LogLevel.Warn);
-                ResetPhoneBackgroundToDefault();
+                ResetPhoneBackgroundToDefault(isLandscape);
+            }
+        }
+
+        public static void DrawFittedTexture(SpriteBatch b, Texture2D tex, Rectangle destRect, Color color, bool fitFullscreen = false)
+        {
+            if (tex == null || tex.IsDisposed || destRect.Width <= 0 || destRect.Height <= 0)
+                return;
+
+            int texWidth = tex.Width;
+            int texHeight = tex.Height;
+            int destWidth = destRect.Width;
+            int destHeight = destRect.Height;
+
+            if (fitFullscreen)
+            {
+                // Fill / Cover mode: Scale proportionally until BOTH width and height reach/cover destRect (no stretching)
+                float scale = Math.Max(destWidth / (float)texWidth, destHeight / (float)texHeight);
+                int cropWidth = Math.Clamp((int)Math.Round(destWidth / scale), 1, texWidth);
+                int cropHeight = Math.Clamp((int)Math.Round(destHeight / scale), 1, texHeight);
+                int cropX = (texWidth - cropWidth) / 2;
+                int cropY = (texHeight - cropHeight) / 2;
+
+                Rectangle sourceRect = new Rectangle(cropX, cropY, cropWidth, cropHeight);
+                b.Draw(tex, destRect, sourceRect, color);
+            }
+            else
+            {
+                // Fit / Contain mode: Scale proportionally until 1 side reaches max width or height (no stretching)
+                float scale = Math.Min(destWidth / (float)texWidth, destHeight / (float)texHeight);
+                int drawWidth = Math.Max(1, (int)Math.Round(texWidth * scale));
+                int drawHeight = Math.Max(1, (int)Math.Round(texHeight * scale));
+                int drawX = destRect.X + (destWidth - drawWidth) / 2;
+                int drawY = destRect.Y + (destHeight - drawHeight) / 2;
+
+                Rectangle fittedDestRect = new Rectangle(drawX, drawY, drawWidth, drawHeight);
+                b.Draw(tex, fittedDestRect, color);
             }
         }
 

@@ -110,11 +110,15 @@ namespace Smartphone
             if (frameTexture == null || frameTexture.IsDisposed)
                 return;
 
-            // Is the active external app landscape?
+            // Is the active screen landscape?
             bool isLandscape = false;
             if (isHudPinned && ActiveExternalAppId != null && RegisteredPhoneApps.TryGetValue(ActiveExternalAppId, out var extAppLand))
             {
                 isLandscape = extAppLand.Landscape;
+            }
+            else if (!isHudPinned && Config != null && !Config.PreferPortraitIconHud)
+            {
+                isLandscape = true;
             }
 
             Microsoft.Xna.Framework.Rectangle iconBounds = GetHudPhoneIconBounds(isLandscape);
@@ -231,7 +235,14 @@ namespace Smartphone
                     }
                     else
                     {
-                        phoneMenu.DrawLockScreenScreen(spriteBatch, 0);
+                        if (isLandscape)
+                        {
+                            phoneMenu.DrawLockScreenLandscapeScreen(spriteBatch, 0);
+                        }
+                        else
+                        {
+                            phoneMenu.DrawLockScreenScreen(spriteBatch, 0);
+                        }
                     }
                     spriteBatch.End();
                 }
@@ -391,6 +402,10 @@ namespace Smartphone
                 if (isHudPinned && ActiveExternalAppId != null && RegisteredPhoneApps.TryGetValue(ActiveExternalAppId, out var extApp))
                 {
                     isLandscape = extApp.Landscape;
+                }
+                else if (!isHudPinned && Config != null && !Config.PreferPortraitIconHud)
+                {
+                    isLandscape = true;
                 }
 
                 var iconBounds = GetHudPhoneIconBounds(isLandscape);

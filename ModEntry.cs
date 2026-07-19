@@ -462,6 +462,7 @@ namespace Smartphone
 
         public static string currentPhoneTheme = "Default";
         public static string currentPhoneBackground = "";
+        public static string currentPhoneLandscapeBackground = "";
         public static string currentPhoneSound = "getNewSpecialItem";
         public static string currentPhoneTextColor = "Black";
         public static string lockScreenPin1 = "builtin:phone";
