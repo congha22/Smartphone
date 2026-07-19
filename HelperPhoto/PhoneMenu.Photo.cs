@@ -440,6 +440,20 @@ namespace Smartphone
             // Build filtered photo list
             List<int> photoIndices = GetFilteredPhotoIndices();
 
+            if (photoFilterType == "imported" && photoIndices.Count == 0)
+            {
+                string msg = ModEntry.SHelper.Translation.Get("ui.photo.imported_empty_help");
+                float textScale = GetPhoneTextScale(0.72f) * phoneUiScale;
+                int maxWrapWidth = (int)((viewport.Width - ScaleUiValue(40)) / textScale);
+                string parsedText = Game1.parseText(msg, Game1.smallFont, maxWrapWidth);
+                Vector2 textSize = Game1.smallFont.MeasureString(parsedText) * textScale;
+                Vector2 textPos = new(
+                    viewport.X + (viewport.Width - textSize.X) / 2f,
+                    viewport.Y + (viewport.Height - textSize.Y) / 2f
+                );
+                b.DrawString(Game1.smallFont, parsedText, textPos, Color.DarkSlateGray, 0f, Vector2.Zero, textScale, SpriteEffects.None, 1f);
+            }
+
             // Rebuild grid cell bounds
             photoGridCellBounds.Clear();
             photoGridCellPhotoIndices.Clear();

@@ -192,6 +192,7 @@
   "ui.photo.album_count_format": "{{name}} ({{count}})",
   "ui.photo.unknown_location": "Unknown Location",
   "ui.photo.no_photo_yet": "No photo yet",
+  "ui.photo.imported_empty_help": "To import photo, simply create folder /photo_imported under /userdata/savename/.\nNote: large number of images with high quality (500KB and above) might cause performance issue on older device.",
   "ui.photo.location_timestamp_format": "{{location}} ({{timestamp}})",
   "ui.button.yes": "Yes",
   "ui.button.no": "No",
