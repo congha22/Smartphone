@@ -65,9 +65,14 @@ namespace Smartphone
             NotificationManager.AddNotification(message, notificationName);
         }
 
-        public string CaptureNpcPhoto(GameLocation targetLocation, Vector2 captureCenter, NPC npc = null, bool landscape = false, bool square = false, List<NPC>? visibleNpcAtTarget = null, float zoomLevel = 1f, int? captureTimeOfDay = null, string saveLocation = null)
+        public string CaptureNpcPhoto(GameLocation targetLocation, Vector2 captureCenter, NPC npc = null, bool landscape = false, bool square = false, List<NPC>? visibleNpcAtTarget = null, float zoomLevel = 1f, int? captureTimeOfDay = null, string saveLocation = null, bool forceFlash = false)
         {
-            return ModEntry.CaptureNpcPhoto(targetLocation, captureCenter, npc, landscape, square, visibleNpcAtTarget, zoomLevel, captureTimeOfDay, saveLocation);
+            return ModEntry.CaptureNpcPhoto(targetLocation, captureCenter, npc, landscape, square, visibleNpcAtTarget, zoomLevel, captureTimeOfDay, saveLocation, forceFlash);
+        }
+
+        public bool CaptureLiveFeedFrame(GameLocation targetLocation, Vector2 captureCenter, RenderTarget2D renderTarget, float zoomLevel = 1f, bool forceFlash = false)
+        {
+            return ModEntry.CaptureLiveFeedFrame(targetLocation, captureCenter, renderTarget, zoomLevel, forceFlash);
         }
 
         public Texture2D GetPlayerPhotoTexture(string photoName)
@@ -123,6 +128,11 @@ namespace Smartphone
         public bool IsHudPinned()
         {
             return ModEntry.isHudPinned;
+        }
+
+        public void SetHudPinned(bool pinned)
+        {
+            ModEntry.isHudPinned = pinned;
         }
 
         public string? GetPinnedAppId()
@@ -426,6 +436,25 @@ namespace Smartphone
         public void AdjustPhoneSize(float amount)
         {
             ModEntry.Instance.AdjustPhoneSize(amount);
+        }
+
+        public bool RegisterPassiveHudOverlay(
+            string ownerModId,
+            string appId,
+            Action<SpriteBatch, Rectangle> onDrawHudOverlay,
+            Func<int, int, bool>? onLeftClick = null,
+            Action<int, int>? onLeftClickHeld = null,
+            Action? onReleaseLeftClick = null,
+            Func<int>? getOverlayHeight = null)
+        {
+            return ModEntry.RegisterPassiveHudOverlayInternal(
+                ownerModId,
+                appId,
+                onDrawHudOverlay,
+                onLeftClick,
+                onLeftClickHeld,
+                onReleaseLeftClick,
+                getOverlayHeight);
         }
     }
 

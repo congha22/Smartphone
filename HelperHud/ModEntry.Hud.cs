@@ -26,6 +26,7 @@ namespace Smartphone
         private int dragStartOffsetY;
         private bool hasDraggedHudIcon = false;
         private bool isDraggingHudSlider = false;
+        private bool isDraggingHudOverlay = false;
         private RenderTarget2D? hudPhoneRenderTarget;
 
         private void OnRenderedHud(object sender, RenderedHudEventArgs e)
@@ -299,15 +300,45 @@ namespace Smartphone
             int sliderHeight = 16;
             int sliderPadding = 8;
             int sliderX = iconBounds.Center.X - (sliderWidth / 2);
-            int sliderY = (iconBounds.Bottom + sliderPadding + sliderHeight > Game1.uiViewport.Height)
-                ? iconBounds.Top - sliderPadding - sliderHeight
-                : iconBounds.Bottom + sliderPadding;
+
+            // Determine if an overlay is registered for the active pinned app
+            RegisteredPhoneApp? overlayApp = null;
+            if (isHudPinned && ActiveExternalAppId != null)
+                RegisteredPhoneApps.TryGetValue(ActiveExternalAppId, out overlayApp);
+
+            bool hasOverlay = overlayApp?.OnDrawHudOverlay != null;
+            int overlayHeight = hasOverlay ? (overlayApp!.GetHudOverlayHeight?.Invoke() ?? 140) : 0;
+            int overlayPadding = hasOverlay ? 6 : 0;
+
+            // Determine adaptive position: prefer below, fall back to above
+            int totalHeightBelow = sliderPadding + sliderHeight + (hasOverlay ? overlayPadding + overlayHeight : 0);
+            bool placeBelow = (iconBounds.Bottom + totalHeightBelow <= Game1.uiViewport.Height);
+
+            int sliderY, overlayY;
+            if (placeBelow)
+            {
+                sliderY = iconBounds.Bottom + sliderPadding;
+                overlayY = sliderY + sliderHeight + overlayPadding;
+            }
+            else
+            {
+                int totalAbove = sliderPadding + sliderHeight + (hasOverlay ? overlayPadding + overlayHeight : 0);
+                sliderY = iconBounds.Top - sliderPadding - sliderHeight - (hasOverlay ? overlayPadding + overlayHeight : 0);
+                overlayY = sliderY + sliderHeight + overlayPadding;
+            }
+
+            int overlayWidth = sliderWidth + 12;
+            int overlayX = iconBounds.Center.X - overlayWidth / 2;
 
             Microsoft.Xna.Framework.Rectangle sliderBounds = new Microsoft.Xna.Framework.Rectangle(sliderX - 6, sliderY, sliderWidth + 12, sliderHeight);
+            Microsoft.Xna.Framework.Rectangle overlayBounds = hasOverlay
+                ? new Microsoft.Xna.Framework.Rectangle(overlayX, overlayY, overlayWidth, overlayHeight)
+                : Microsoft.Xna.Framework.Rectangle.Empty;
 
             bool isHoveringIcon = iconBounds.Contains(Game1.getMouseX(true), Game1.getMouseY(true));
             bool isHoveringSlider = sliderBounds.Contains(Game1.getMouseX(true), Game1.getMouseY(true));
-            bool showSlider = (isHoveringIcon || isHoveringSlider || isDraggingHudSlider) && !isDraggingHudIcon;
+            bool isHoveringOverlay = hasOverlay && overlayBounds.Contains(Game1.getMouseX(true), Game1.getMouseY(true));
+            bool showSlider = (isHoveringIcon || isHoveringSlider || isHoveringOverlay || isDraggingHudSlider || isDraggingHudOverlay) && !isDraggingHudIcon;
 
             if (showSlider)
             {
@@ -341,6 +372,12 @@ namespace Smartphone
                 Color knobColor = (isHoveringKnob || isDraggingHudSlider) ? Color.White : Color.LightGray;
 
                 spriteBatch.Draw(Game1.staminaRect, knobRect, knobColor);
+
+                // 4. Draw overlay panel if present
+                if (hasOverlay && overlayBounds.Width > 0 && overlayBounds.Height > 0)
+                {
+                    overlayApp!.OnDrawHudOverlay!(spriteBatch, overlayBounds);
+                }
             }
         }
 
@@ -414,15 +451,57 @@ namespace Smartphone
                 int sliderPadding = 8;
 
                 int sliderX = iconBounds.Center.X - (sliderWidth / 2);
-                int sliderY = (iconBounds.Bottom + sliderPadding + sliderHeight > Game1.uiViewport.Height)
-                    ? iconBounds.Top - sliderPadding - sliderHeight
-                    : iconBounds.Bottom + sliderPadding;
+
+                // Determine overlay presence
+                RegisteredPhoneApp? overlayApp = null;
+                if (isHudPinned && ActiveExternalAppId != null)
+                    RegisteredPhoneApps.TryGetValue(ActiveExternalAppId, out overlayApp);
+
+                bool hasOverlay = overlayApp?.OnDrawHudOverlay != null;
+                int overlayHeight = hasOverlay ? (overlayApp!.GetHudOverlayHeight?.Invoke() ?? 140) : 0;
+                int overlayPadding = hasOverlay ? 6 : 0;
+
+                int totalHeightBelow = sliderPadding + sliderHeight + (hasOverlay ? overlayPadding + overlayHeight : 0);
+                bool placeBelow = (iconBounds.Bottom + totalHeightBelow <= Game1.uiViewport.Height);
+
+                int sliderY, overlayY;
+                if (placeBelow)
+                {
+                    sliderY = iconBounds.Bottom + sliderPadding;
+                    overlayY = sliderY + sliderHeight + overlayPadding;
+                }
+                else
+                {
+                    sliderY = iconBounds.Top - sliderPadding - sliderHeight - (hasOverlay ? overlayPadding + overlayHeight : 0);
+                    overlayY = sliderY + sliderHeight + overlayPadding;
+                }
+
+                int overlayWidth = sliderWidth + 12;
+                int overlayX = iconBounds.Center.X - overlayWidth / 2;
 
                 Microsoft.Xna.Framework.Rectangle sliderBounds = new Microsoft.Xna.Framework.Rectangle(sliderX - 6, sliderY, sliderWidth + 12, sliderHeight);
+                Microsoft.Xna.Framework.Rectangle overlayBounds = hasOverlay
+                    ? new Microsoft.Xna.Framework.Rectangle(overlayX, overlayY, overlayWidth, overlayHeight)
+                    : Microsoft.Xna.Framework.Rectangle.Empty;
 
-                bool isHoveringIcon = iconBounds.Contains(Game1.getMouseX(true), Game1.getMouseY(true));
-                bool isHoveringSlider = sliderBounds.Contains(Game1.getMouseX(true), Game1.getMouseY(true));
-                bool showSlider = (isHoveringIcon || isHoveringSlider || isDraggingHudSlider) && !isDraggingHudIcon;
+                int mx = Game1.getMouseX(true);
+                int my = Game1.getMouseY(true);
+                bool isHoveringIcon = iconBounds.Contains(mx, my);
+                bool isHoveringSlider = sliderBounds.Contains(mx, my);
+                bool isHoveringOverlay = hasOverlay && overlayBounds.Contains(mx, my);
+                bool showSlider = (isHoveringIcon || isHoveringSlider || isHoveringOverlay || isDraggingHudSlider || isDraggingHudOverlay) && !isDraggingHudIcon;
+
+                // Check overlay click first (highest priority when visible)
+                if (showSlider && isHoveringOverlay && overlayApp?.OnHudOverlayLeftClick != null)
+                {
+                    bool consumed = overlayApp.OnHudOverlayLeftClick(mx, my);
+                    if (consumed)
+                    {
+                        isDraggingHudOverlay = true;
+                        Helper.Input.Suppress(SButton.MouseLeft);
+                        return true;
+                    }
+                }
 
                 if (showSlider && isHoveringSlider)
                 {
@@ -462,7 +541,7 @@ namespace Smartphone
                     extApp.OnUpdateHudScreen?.Invoke(Game1.currentGameTime);
                 }
             }
-            if (isDraggingHudIcon || isDraggingHudSlider)
+            if (isDraggingHudIcon || isDraggingHudSlider || isDraggingHudOverlay)
             {
                 bool isPhysicallyDown = Helper.Input.IsDown(SButton.MouseLeft) || Helper.Input.IsSuppressed(SButton.MouseLeft);
 
@@ -486,6 +565,13 @@ namespace Smartphone
                         isDraggingHudSlider = false;
                         Helper.WriteConfig(Config);
                     }
+                    else if (isDraggingHudOverlay)
+                    {
+                        isDraggingHudOverlay = false;
+                        // Notify overlay of release
+                        if (ActiveExternalAppId != null && RegisteredPhoneApps.TryGetValue(ActiveExternalAppId, out var releaseApp))
+                            releaseApp.OnHudOverlayReleaseLeftClick?.Invoke();
+                    }
                     return;
                 }
             }
@@ -508,6 +594,12 @@ namespace Smartphone
             else if (isDraggingHudSlider)
             {
                 UpdateSliderDrag();
+            }
+            else if (isDraggingHudOverlay)
+            {
+                // Forward held drag to overlay
+                if (ActiveExternalAppId != null && RegisteredPhoneApps.TryGetValue(ActiveExternalAppId, out var heldApp))
+                    heldApp.OnHudOverlayLeftClickHeld?.Invoke(Game1.getMouseX(true), Game1.getMouseY(true));
             }
         }
     }

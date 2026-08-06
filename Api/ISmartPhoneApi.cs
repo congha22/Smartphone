@@ -264,7 +264,14 @@ namespace Smartphone
         /// <summary>
         /// Captures a photo for StardewSocial programmatically.
         /// </summary>
-        string CaptureNpcPhoto(GameLocation targetLocation, Vector2 captureCenter, NPC npc = null, bool landscape = false, bool square = false, List<NPC>? visibleNpcAtTarget = null, float zoomLevel = 1f, int? captureTimeOfDay = null, string saveLocation = null);
+        string CaptureNpcPhoto(GameLocation targetLocation, Vector2 captureCenter, NPC npc = null, bool landscape = false, bool square = false, List<NPC>? visibleNpcAtTarget = null, float zoomLevel = 1f, int? captureTimeOfDay = null, string saveLocation = null, bool forceFlash = false);
+
+        /// <summary>
+        /// Renders targetLocation centred on captureCenter into an existing renderTarget without saving to disk.
+        /// Intended for low-frequency live-feed rendering (e.g. 1 frame every 3 seconds).
+        /// </summary>
+        /// <returns>True on success; false if the capture could not be completed.</returns>
+        bool CaptureLiveFeedFrame(GameLocation targetLocation, Vector2 captureCenter, RenderTarget2D renderTarget, float zoomLevel = 1f, bool forceFlash = false);
 
         /// <summary>
         /// Gets a player photo texture by its name.
@@ -312,8 +319,36 @@ namespace Smartphone
         bool IsHudPinned();
 
         /// <summary>
+        /// Explicitly pins or unpins the active external app's HUD icon.
+        /// </summary>
+        void SetHudPinned(bool pinned);
+
+        /// <summary>
         /// Gets the composite ID of the currently pinned external app.
         /// </summary>
         string? GetPinnedAppId();
+
+        /// <summary>
+        /// Registers an interactive overlay panel drawn adjacent to the HUD phone icon slider.
+        /// Only visible while the Live Camera (or any pinned) HUD is active and the user hovers
+        /// over the HUD icon, slider, or the overlay itself.
+        /// </summary>
+        /// <param name="ownerModId">The unique ID of the mod that owns this app.</param>
+        /// <param name="appId">The app ID that was used during registration.</param>
+        /// <param name="onDrawHudOverlay">Callback to draw the overlay panel. Receives the destination Rectangle.</param>
+        /// <param name="onLeftClick">Optional hit-test callback. Return true if the click at (x, y) was consumed.</param>
+        /// <param name="onLeftClickHeld">Optional per-frame drag callback while mouse button is held.</param>
+        /// <param name="onReleaseLeftClick">Optional callback invoked when the left mouse button is released.</param>
+        /// <param name="getOverlayHeight">Optional function returning the desired overlay panel height in pixels.</param>
+        /// <returns>True if registration succeeded; otherwise false.</returns>
+        bool RegisterPassiveHudOverlay(
+            string ownerModId,
+            string appId,
+            Action<SpriteBatch, Rectangle> onDrawHudOverlay,
+            Func<int, int, bool>? onLeftClick = null,
+            Action<int, int>? onLeftClickHeld = null,
+            Action? onReleaseLeftClick = null,
+            Func<int>? getOverlayHeight = null
+        );
     }
 }

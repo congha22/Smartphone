@@ -267,7 +267,7 @@ namespace Smartphone
             }
         }
 
-        public static string CaptureNpcPhoto(GameLocation targetLocation, Vector2 captureCenter, NPC npc = null, bool landscape = false, bool square = false, List<NPC>? visibleNpcAtTarget = null, float zoomLevel = 1f, int? captureTimeOfDay = null, string saveLocation = null)
+        public static string CaptureNpcPhoto(GameLocation targetLocation, Vector2 captureCenter, NPC npc = null, bool landscape = false, bool square = false, List<NPC>? visibleNpcAtTarget = null, float zoomLevel = 1f, int? captureTimeOfDay = null, string saveLocation = null, bool forceFlash = false)
         {
             if (!Context.IsWorldReady || targetLocation == null || Game1.graphics?.GraphicsDevice == null || Game1.game1 == null)
                 return "";
@@ -290,7 +290,7 @@ namespace Smartphone
                 Game1.viewport = BuildNpcCaptureViewport(targetLocation, captureCenter, captureWidth, captureHeight);
                 Game1.timeOfDay = effectiveCaptureTime;
                 mapAppearanceSnapshot = PrepareLocationRenderState(targetLocation, captureWidth, captureHeight);
-                TryAddNpcCaptureFlashLight(targetLocation, captureCenter, zoomLevel, effectiveCaptureTime);
+                TryAddNpcCaptureFlashLight(targetLocation, captureCenter, zoomLevel, effectiveCaptureTime, forceFlash);
 
                 graphics.SetRenderTarget(renderTarget);
                 graphics.Clear(Color.Black);
@@ -323,9 +323,96 @@ namespace Smartphone
             return SaveCapturedPhoto(renderTarget, targetLocation.DisplayName, tags, false, square, saveLocation);
         }
 
-        private static void TryAddNpcCaptureFlashLight(GameLocation targetLocation, Vector2 captureCenterTile, float zoomLevel, int captureTimeOfDay)
+        /// <summary>
+        /// Renders <paramref name="targetLocation"/> centred on <paramref name="captureCenter"/> into
+        /// an existing <paramref name="renderTarget"/> without saving anything to disk.
+        /// Intended for low-frequency live-feed use (e.g. one call every 3 seconds).
+        /// </summary>
+        /// <returns>True on success; false if the capture could not be completed.</returns>
+        public static bool CaptureLiveFeedFrame(
+            GameLocation targetLocation,
+            Vector2 captureCenter,
+            RenderTarget2D renderTarget,
+            float zoomLevel = 1f,
+            bool forceFlash = false)
         {
-            if (!ShouldEnableNpcCaptureFlash(targetLocation, captureTimeOfDay))
+            if (!Context.IsWorldReady || targetLocation == null ||
+                renderTarget == null || renderTarget.IsDisposed ||
+                Game1.graphics?.GraphicsDevice == null || Game1.game1 == null)
+                return false;
+
+            GraphicsDevice graphics = Game1.graphics.GraphicsDevice;
+            int effectiveCaptureTime = NormalizeCaptureTimeOfDay(null);
+            var renderStateSnapshot = new PhotoRenderStateSnapshot();
+            int temporarySpriteCount = targetLocation.temporarySprites.Count;
+            CaptureMapAppearanceSnapshot? mapAppearanceSnapshot = null;
+
+            (int zoomedW, int zoomedH) = GetZoomedCaptureDimensions(renderTarget.Width, renderTarget.Height, zoomLevel);
+            bool useIntermediateTarget = (zoomedW != renderTarget.Width || zoomedH != renderTarget.Height);
+
+            RenderTarget2D captureTarget = useIntermediateTarget
+                ? new RenderTarget2D(graphics, zoomedW, zoomedH)
+                : renderTarget;
+
+            try
+            {
+                Game1.currentLocation = targetLocation;
+                Game1.viewport = BuildNpcCaptureViewport(
+                    targetLocation,
+                    captureCenter,
+                    zoomedW,
+                    zoomedH);
+                Game1.timeOfDay = effectiveCaptureTime;
+                mapAppearanceSnapshot = PrepareLocationRenderState(
+                    targetLocation, zoomedW, zoomedH);
+
+                if (forceFlash)
+                {
+                    TryAddNpcCaptureFlashLight(targetLocation, captureCenter, zoomLevel, effectiveCaptureTime, forceFlash: true);
+                }
+
+                graphics.SetRenderTarget(captureTarget);
+                graphics.Clear(Color.Black);
+
+                Game1.game1.DrawWorld(Game1.currentGameTime, captureTarget);
+
+                if (useIntermediateTarget)
+                {
+                    graphics.SetRenderTarget(renderTarget);
+                    graphics.Clear(Color.Black);
+
+                    using (SpriteBatch b = new SpriteBatch(graphics))
+                    {
+                        b.Begin(SpriteSortMode.Deferred, BlendState.Opaque, SamplerState.LinearClamp);
+                        b.Draw(captureTarget, new Microsoft.Xna.Framework.Rectangle(0, 0, renderTarget.Width, renderTarget.Height), Color.White);
+                        b.End();
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                RecoverWorldDrawStateAfterCaptureFailure();
+                SMonitor.Log($"CaptureLiveFeedFrame failed for '{targetLocation?.Name}': {ex}", LogLevel.Trace);
+                return false;
+            }
+            finally
+            {
+                graphics.SetRenderTarget(null);
+                mapAppearanceSnapshot?.Restore();
+                RestoreTemporarySpritesAfterCapture(targetLocation, temporarySpriteCount);
+                renderStateSnapshot.Restore();
+                if (useIntermediateTarget)
+                {
+                    captureTarget.Dispose();
+                }
+            }
+        }
+
+        private static void TryAddNpcCaptureFlashLight(GameLocation targetLocation, Vector2 captureCenterTile, float zoomLevel, int captureTimeOfDay, bool forceFlash = false)
+        {
+            if (!forceFlash && !ShouldEnableNpcCaptureFlash(targetLocation, captureTimeOfDay))
                 return;
 
             float flashRadius = GetNpcCaptureFlashRadiusForZoom(zoomLevel);

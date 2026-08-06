@@ -21,6 +21,13 @@ namespace Smartphone
         public Action<GameTime>? OnUpdateHudScreen { get; set; }
         public bool Landscape { get; set; }
 
+        // Optional interactive overlay rendered next to the HUD slider
+        public Action<SpriteBatch, Rectangle>? OnDrawHudOverlay { get; set; }
+        public Func<int, int, bool>? OnHudOverlayLeftClick { get; set; }
+        public Action<int, int>? OnHudOverlayLeftClickHeld { get; set; }
+        public Action? OnHudOverlayReleaseLeftClick { get; set; }
+        public Func<int>? GetHudOverlayHeight { get; set; }
+
         public string CompositeId => BuildCompositeId(this.OwnerModId, this.AppId);
 
         public static string BuildCompositeId(string ownerModId, string appId)
@@ -232,6 +239,46 @@ namespace Smartphone
             }
 
             SMonitor?.Log($"RegisterPassiveHudCallback failed: app '{key}' is not registered yet. Please register the app first.", LogLevel.Warn);
+            return false;
+        }
+
+        internal static bool RegisterPassiveHudOverlayInternal(
+            string ownerModId,
+            string appId,
+            Action<SpriteBatch, Rectangle> onDrawHudOverlay,
+            Func<int, int, bool>? onLeftClick = null,
+            Action<int, int>? onLeftClickHeld = null,
+            Action? onReleaseLeftClick = null,
+            Func<int>? getOverlayHeight = null)
+        {
+            if (string.IsNullOrWhiteSpace(ownerModId) || string.IsNullOrWhiteSpace(appId))
+            {
+                SMonitor?.Log("RegisterPassiveHudOverlay failed: ownerModId and appId are required.", LogLevel.Warn);
+                return false;
+            }
+
+            if (onDrawHudOverlay == null)
+            {
+                SMonitor?.Log("RegisterPassiveHudOverlay failed: onDrawHudOverlay callback is required.", LogLevel.Warn);
+                return false;
+            }
+
+            string key = RegisteredPhoneApp.BuildCompositeId(ownerModId, appId);
+            lock (RegisteredPhoneAppsLock)
+            {
+                if (RegisteredPhoneApps.TryGetValue(key, out var app))
+                {
+                    app.OnDrawHudOverlay = onDrawHudOverlay;
+                    app.OnHudOverlayLeftClick = onLeftClick;
+                    app.OnHudOverlayLeftClickHeld = onLeftClickHeld;
+                    app.OnHudOverlayReleaseLeftClick = onReleaseLeftClick;
+                    app.GetHudOverlayHeight = getOverlayHeight;
+                    SMonitor?.Log($"Registered passive HUD overlay for '{key}'.", LogLevel.Trace);
+                    return true;
+                }
+            }
+
+            SMonitor?.Log($"RegisterPassiveHudOverlay failed: app '{key}' is not registered. Please register the app first.", LogLevel.Warn);
             return false;
         }
 
