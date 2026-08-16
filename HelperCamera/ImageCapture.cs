@@ -354,8 +354,28 @@ namespace Smartphone
                 ? new RenderTarget2D(graphics, zoomedW, zoomedH)
                 : renderTarget;
 
+            var savedNpcTextAboveHead = new Dictionary<NPC, (string? Text, int Timer)>();
+
             try
             {
+                if (Game1.player != null)
+                {
+                    Game1.player.Position = new Vector2(999999f, 999999f);
+                }
+
+                if (targetLocation.characters != null)
+                {
+                    foreach (NPC character in targetLocation.characters)
+                    {
+                        if (character == null) continue;
+                        string? currentText = TryGetInstanceMemberValue(character, "textAboveHead") as string;
+                        int currentTimer = TryGetInstanceMemberValue(character, "textAboveHeadTimer") as int? ?? 0;
+                        savedNpcTextAboveHead[character] = (currentText, currentTimer);
+                        TrySetInstanceMemberValue(character, null, "textAboveHead");
+                        TrySetInstanceMemberValue(character, 0, "textAboveHeadTimer");
+                    }
+                }
+
                 Game1.currentLocation = targetLocation;
                 Game1.viewport = BuildNpcCaptureViewport(
                     targetLocation,
@@ -364,7 +384,7 @@ namespace Smartphone
                     zoomedH);
                 Game1.timeOfDay = effectiveCaptureTime;
                 mapAppearanceSnapshot = PrepareLocationRenderState(
-                    targetLocation, zoomedW, zoomedH);
+                    targetLocation, zoomedW, zoomedH, isLiveFeed: true);
 
                 if (forceFlash)
                 {
@@ -399,6 +419,18 @@ namespace Smartphone
             }
             finally
             {
+                if (targetLocation.characters != null)
+                {
+                    foreach (var (npc, textState) in savedNpcTextAboveHead)
+                    {
+                        if (npc != null)
+                        {
+                            TrySetInstanceMemberValue(npc, textState.Text, "textAboveHead");
+                            TrySetInstanceMemberValue(npc, textState.Timer, "textAboveHeadTimer");
+                        }
+                    }
+                }
+
                 graphics.SetRenderTarget(null);
                 mapAppearanceSnapshot?.Restore();
                 RestoreTemporarySpritesAfterCapture(targetLocation, temporarySpriteCount);
@@ -563,6 +595,52 @@ namespace Smartphone
                 if (field != null)
                 {
                     field.SetValue(null, value);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static object? TryGetInstanceMemberValue(object source, params string[] memberNames)
+        {
+            if (source == null) return null;
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.IgnoreCase;
+            Type sourceType = source.GetType();
+
+            foreach (string memberName in memberNames)
+            {
+                PropertyInfo? property = sourceType.GetProperty(memberName, flags);
+                if (property != null)
+                    return property.GetValue(source);
+
+                FieldInfo? field = sourceType.GetField(memberName, flags);
+                if (field != null)
+                    return field.GetValue(source);
+            }
+
+            return null;
+        }
+
+        private static bool TrySetInstanceMemberValue(object source, object? value, params string[] memberNames)
+        {
+            if (source == null) return false;
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.IgnoreCase;
+            Type sourceType = source.GetType();
+
+            foreach (string memberName in memberNames)
+            {
+                PropertyInfo? property = sourceType.GetProperty(memberName, flags);
+                if (property?.CanWrite == true)
+                {
+                    property.SetValue(source, value);
+                    return true;
+                }
+
+                FieldInfo? field = sourceType.GetField(memberName, flags);
+                if (field != null)
+                {
+                    field.SetValue(source, value);
                     return true;
                 }
             }
@@ -852,6 +930,7 @@ namespace Smartphone
             private readonly xTile.Dimensions.Rectangle viewport;
             private readonly Viewport graphicsViewport;
             private readonly GameLocation currentLocation;
+            private readonly Vector2? playerPosition;
             private readonly int timeOfDay;
             private readonly Color ambientLight;
             private readonly Color outdoorLight;
@@ -872,6 +951,7 @@ namespace Smartphone
                 viewport = Game1.viewport;
                 graphicsViewport = Game1.graphics.GraphicsDevice.Viewport;
                 currentLocation = Game1.currentLocation;
+                playerPosition = Game1.player?.Position;
                 timeOfDay = Game1.timeOfDay;
                 ambientLight = Game1.ambientLight;
                 outdoorLight = Game1.outdoorLight;
@@ -902,6 +982,8 @@ namespace Smartphone
                 Game1.graphics.GraphicsDevice.Viewport = graphicsViewport;
                 Game1.viewport = viewport;
                 Game1.currentLocation = currentLocation;
+                if (Game1.player != null && playerPosition.HasValue)
+                    Game1.player.Position = playerPosition.Value;
                 Game1.timeOfDay = timeOfDay;
                 Game1.ambientLight = ambientLight;
                 Game1.outdoorLight = outdoorLight;
@@ -993,10 +1075,13 @@ namespace Smartphone
             }
         }
 
-        private static CaptureMapAppearanceSnapshot PrepareLocationRenderState(GameLocation targetLocation, int captureWidth, int captureHeight)
+        private static CaptureMapAppearanceSnapshot PrepareLocationRenderState(GameLocation targetLocation, int captureWidth, int captureHeight, bool isLiveFeed = false)
         {
             SetViewingLocationForCapture(targetLocation);
-            targetLocation.setUpLocationSpecificFlair();
+            if (!isLiveFeed)
+            {
+                targetLocation.setUpLocationSpecificFlair();
+            }
             CaptureMapAppearanceSnapshot mapAppearanceSnapshot = ApplyMapAppearanceForCapture(targetLocation);
             AllocateLightmapForCapture(captureWidth, captureHeight);
 

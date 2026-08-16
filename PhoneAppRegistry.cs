@@ -209,19 +209,13 @@ namespace Smartphone
         internal static bool RegisterPassiveHudCallbackInternal(
             string ownerModId,
             string appId,
-            Action<SpriteBatch, Rectangle> onDrawHudScreen,
+            Action<SpriteBatch, Rectangle>? onDrawHudScreen,
             Action<GameTime>? onUpdateHudScreen = null,
             bool landscape = false)
         {
             if (string.IsNullOrWhiteSpace(ownerModId) || string.IsNullOrWhiteSpace(appId))
             {
                 SMonitor?.Log("RegisterPassiveHudCallback failed: ownerModId and appId are required.", LogLevel.Warn);
-                return false;
-            }
-
-            if (onDrawHudScreen == null)
-            {
-                SMonitor?.Log("RegisterPassiveHudCallback failed: onDrawHudScreen callback is required.", LogLevel.Warn);
                 return false;
             }
 
