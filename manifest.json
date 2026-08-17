@@ -1,7 +1,7 @@
 {
   "Name": "Smartphone",
   "Author": "d5a1lamdtd",
-  "Version": "2.5",
+  "Version": "2.6",
   "Description": "Smartphone",
   "UniqueID": "d5a1lamdtd.Smartphone",
   "EntryDll": "Smartphone.dll",
